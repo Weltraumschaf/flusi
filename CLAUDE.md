@@ -23,7 +23,11 @@ Open the project in Unity Hub, which will install editor `6000.3.19f1` if missin
 
 ## Commands
 
-`Unity` is the editor binary (macOS: `/Applications/Unity/Hub/Editor/6000.3.19f1/Unity.app/Contents/MacOS/Unity`). Close the Editor before running batchmode commands — Unity locks the project.
+`Unity` is the editor binary — close the Editor before running batchmode commands (Unity locks the project). Path by platform:
+- macOS: `/Applications/Unity/Hub/Editor/6000.3.19f1/Unity.app/Contents/MacOS/Unity`
+- Linux: `~/Unity/Hub/Editor/6000.3.19f1/Editor/Unity`
+
+Batchmode exits non-zero if any test fails and writes results to the `-testResults` path, so these commands are CI-ready.
 
 ```shell
 # Run all tests (EditMode or PlayMode) and exit

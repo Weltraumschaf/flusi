@@ -1,0 +1,11 @@
+{
+    "name": "Flusi",
+    "rootNamespace": "Flusi",
+    "references": [
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "autoReferenced": true
+}

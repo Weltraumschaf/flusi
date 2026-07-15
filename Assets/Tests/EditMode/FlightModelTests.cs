@@ -37,5 +37,82 @@ namespace Flusi.Tests
                 s = FlightModel.Step(s, new FlightInput { Throttle = -1f }, 0f, Cfg, 0.1f);
             Assert.GreaterOrEqual(s.Speed, Cfg.MinSpeed);
         }
+
+        [Test]
+        public void Turn_BanksTowardMaxBank()
+        {
+            var s = Level(80f);
+            s = FlightModel.Step(s, new FlightInput { Turn = 1f }, 0f, Cfg, 0.1f);
+            Assert.Greater(s.Bank, 0f);
+            Assert.LessOrEqual(s.Bank, Cfg.MaxBankDeg + 0.001f);
+        }
+
+        [Test]
+        public void Pitch_Input_RaisesPitch_ClampedToMax()
+        {
+            var s = Level(80f);
+            for (int i = 0; i < 100; i++)
+                s = FlightModel.Step(s, new FlightInput { Pitch = 1f }, 0f, Cfg, 0.1f);
+            Assert.AreEqual(Cfg.MaxPitchDeg, s.Pitch, 0.001f);
+        }
+
+        [Test]
+        public void AutoLevel_On_NoInput_ConvergesToLevel()
+        {
+            var s = Level(80f);
+            s.Bank = 40f; s.Pitch = 20f;
+            for (int i = 0; i < 400; i++)
+                s = FlightModel.Step(s, new FlightInput { AutoLevel = true }, 0f, Cfg, 0.1f);
+            Assert.AreEqual(0f, s.Bank, 0.5f);
+            Assert.AreEqual(0f, s.Pitch, 0.5f);
+        }
+
+        [Test]
+        public void AutoLevel_Off_HoldsBank()
+        {
+            var s = Level(80f);
+            s.Bank = 40f;
+            for (int i = 0; i < 50; i++)
+                s = FlightModel.Step(s, new FlightInput { AutoLevel = false }, 0f, Cfg, 0.1f);
+            Assert.AreEqual(40f, s.Bank, 0.001f);
+        }
+
+        [Test]
+        public void AutoLevel_Off_HoldsPitch()
+        {
+            var s = Level(80f);
+            s.Pitch = 20f;
+            for (int i = 0; i < 50; i++)
+                s = FlightModel.Step(s, new FlightInput { AutoLevel = false }, 0f, Cfg, 0.1f);
+            Assert.AreEqual(20f, s.Pitch, 0.001f);
+        }
+
+        [Test]
+        public void Level_Flight_AdvancesForwardNorth()
+        {
+            var s = Level(100f); // heading 0 = +Z (north)
+            s = FlightModel.Step(s, new FlightInput(), 0f, Cfg, 1f);
+            Assert.Greater(s.Position.z, 99f);            // moved ~100 m north
+            Assert.AreEqual(0f, s.Position.x, 0.5f);
+            Assert.AreEqual(1000f, s.Position.y, 0.5f);   // level: no altitude change
+        }
+
+        [Test]
+        public void Bank_ProducesHeadingChange()
+        {
+            var s = Level(100f);
+            s.Bank = Cfg.MaxBankDeg;
+            float before = s.Heading;
+            s = FlightModel.Step(s, new FlightInput { Turn = 1f }, 0f, Cfg, 1f);
+            Assert.Greater(Mathf.DeltaAngle(before, s.Heading), 0f);
+        }
+
+        [Test]
+        public void NoBank_KeepsHeading()
+        {
+            var s = Level(100f);
+            s = FlightModel.Step(s, new FlightInput(), 0f, Cfg, 1f);
+            Assert.AreEqual(0f, s.Heading, 0.001f);
+        }
     }
 }

@@ -12,7 +12,7 @@ namespace Flusi
         public float MaxBankDeg;           // bank at full turn input
         public float BankRateDeg;          // deg/s the bank moves toward its target
         public float TurnRateDegAtMaxBank; // deg/s heading change when banked fully
-        public float AutoLevelStrength;    // fraction of max angle eased away per second
+        public float AutoLevelStrength;    // return rate; eases MaxAngle * this degrees/sec toward level
         public float GroundClearance;      // metres kept above terrain
 
         public static FlightConfig Default => new FlightConfig

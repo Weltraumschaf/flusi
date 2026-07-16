@@ -128,7 +128,7 @@ Using the §4.1 convention (0° = 12 o'clock, positive = clockwise):
 
 | Gauge | value range | `startAngle` | `sweepAngle` | Reads |
 | --- | --- | --- | --- | --- |
-| Airspeed | 0 → 500 km/h | 0° | +320° | 0 at 12 o'clock, full scale at 8 o'clock |
+| Airspeed | 0 → 500 km/h | 0° | +320° | 0 at 12 o'clock, full scale just before 11 o'clock (320° = 10:40); the 40° gap sits at the top left |
 | Vertical speed | −100 → +100 m/s | 185° | +170° | full descent just past 6 o'clock, zero at 9 o'clock (270°), full climb just before 12 |
 | Turn coordinator | −55 → +55° bank | −30° | +60° | symbol level at zero bank, ±30° of roll at full bank |
 

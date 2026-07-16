@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text;
+using UnityEditor;
 using UnityEditor.TestTools.TestRunner.Api;
 using UnityEngine;
 
@@ -9,12 +10,21 @@ namespace Flusi.EditorTools
     /// compact result summary to Temp/flusi-tests.txt so an external driver
     /// (the MCP bridge) can read pass/fail without the Test Runner UI.
     /// Not shipped in builds (Editor-only assembly).
+    ///
+    /// The callback is registered once per domain load via [InitializeOnLoad]
+    /// rather than at Run() time, so results are still captured when a PlayMode
+    /// run reloads the domain on entering play mode.
+    [InitializeOnLoad]
     public class FlusiTestRunner : ICallbacks
     {
         public const string ResultPath = "Temp/flusi-tests.txt";
         public const string FailPath = "Temp/flusi-tests-failures.txt";
 
-        private static TestRunnerApi _api;
+        static FlusiTestRunner()
+        {
+            var api = ScriptableObject.CreateInstance<TestRunnerApi>();
+            api.RegisterCallbacks(new FlusiTestRunner());
+        }
 
         public static void RunEditMode() => Run(TestMode.EditMode);
         public static void RunPlayMode() => Run(TestMode.PlayMode);
@@ -24,7 +34,6 @@ namespace Flusi.EditorTools
             File.WriteAllText(ResultPath, "RUNNING " + mode);
             File.WriteAllText(FailPath, "");
             var api = ScriptableObject.CreateInstance<TestRunnerApi>();
-            api.RegisterCallbacks(new FlusiTestRunner());
             api.Execute(new ExecutionSettings(new Filter { testMode = mode }));
         }
 

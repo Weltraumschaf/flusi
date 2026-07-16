@@ -45,6 +45,15 @@ namespace Flusi
             Vector3 forward = Quaternion.Euler(-state.Pitch, state.Heading, 0f) * Vector3.forward;
             state.Position += forward * state.Speed * dt;
 
+            // Soft ground contact: never crash. Skim along the clearance floor
+            // and cancel any downward pitch so the plane levels off.
+            float floor = groundHeight + cfg.GroundClearance;
+            if (state.Position.y < floor)
+            {
+                state.Position.y = floor;
+                if (state.Pitch < 0f) state.Pitch = 0f;
+            }
+
             return state;
         }
     }

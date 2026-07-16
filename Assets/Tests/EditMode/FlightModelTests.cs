@@ -114,5 +114,26 @@ namespace Flusi.Tests
             s = FlightModel.Step(s, new FlightInput(), 0f, Cfg, 1f);
             Assert.AreEqual(0f, s.Heading, 0.001f);
         }
+
+        [Test]
+        public void BelowGround_ClampsToClearance_AndLevelsDescent()
+        {
+            var s = Level(100f);
+            s.Position = new Vector3(0f, 100f, 0f);
+            s.Pitch = -30f; // diving
+            float ground = 150f; // ground is above the plane
+            s = FlightModel.Step(s, new FlightInput(), ground, Cfg, 0.1f);
+            Assert.GreaterOrEqual(s.Position.y, ground + Cfg.GroundClearance - 0.001f);
+            Assert.GreaterOrEqual(s.Pitch, 0f); // no longer diving into the ground
+        }
+
+        [Test]
+        public void AboveGround_NoClamp()
+        {
+            var s = Level(100f);
+            s.Position = new Vector3(0f, 1000f, 0f);
+            s = FlightModel.Step(s, new FlightInput(), 0f, Cfg, 0.1f);
+            Assert.AreEqual(1000f, s.Position.y, 0.5f);
+        }
     }
 }

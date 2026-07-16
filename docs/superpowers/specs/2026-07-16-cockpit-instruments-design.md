@@ -6,7 +6,7 @@ Simulator II* (reference: `docs/cockpit-view-amiga-game.png`) but rendered
 cleanly rather than in 16-colour pixels.
 
 - **Date:** 2026-07-16
-- **Supersedes:** `Specification.md` §4, §7.3, §8.4 (see §9 below).
+- **Supersedes:** parts of `Specification.md` — see §9 for the full list.
 - **Status:** approved, ready for planning.
 
 ---
@@ -21,10 +21,14 @@ The requested change is structural, not cosmetic. In the reference the panel is
 **opaque and occupies real estate**; the outside world becomes a letterboxed
 window above it. That framing is what sells the cockpit.
 
-This is a **presentation-only change**. It consumes the existing read-only
-`IAircraftState` seam and touches no flight code. `FlightModel`,
-`AircraftController`, `FlightConfig` and all 22 EditMode flight tests are
-unchanged.
+This is **almost** a presentation-only change. It consumes the existing
+read-only `IAircraftState` seam, and `FlightModel`, `FlightConfig` and all 22
+EditMode flight tests are unchanged.
+
+The one exception is the landing gear (§3.4): it adds a `ToggleGear` action to
+the input asset, a bool to `AircraftController`, and `GearDown` to
+`IAircraftState`. The flight model itself is still untouched — gear is state the
+player toggles, not a force.
 
 ---
 
@@ -43,8 +47,9 @@ Screen splits horizontally:
 ├─────────────────────────────┬──────────────────────────┤
 │  ASI     ATTITUDE     ALT   │   ALT      3 500 m       │
 │                             │   SPD        320 km/h    │
-│  TURN    HEADING      VSI   │  ┌──────────┐            │
-│                             │  │ MINIMAP  │   ASSIST   │
+│  TURN    HEADING      VSI   │  ┌──────────┐  FUEL E▮▮F │
+│ (+ball)                     │  │ MINIMAP  │  ASSIST    │
+│                             │  └──────────┘  GEAR      │
 └─────────────────────────────┴──────────────────────────┘
         left ~2/3 of panel          right ~1/3 of panel
 ```
@@ -84,7 +89,7 @@ field of view. Confirm in playtest; `fieldOfView` is the tuning knob.
 
 ## 3. Instruments
 
-All six gauges are driven by real state. **Nothing on this panel is a prop.**
+All six gauges are driven by real state.
 
 | Gauge | Source | Range | Needle sweep |
 | --- | --- | --- | --- |
@@ -95,8 +100,9 @@ All six gauges are driven by real state. **Nothing on this panel is a prop.**
 | Heading (HI) | `HeadingDegrees` | 0–360° | card rotates by −heading |
 | Vertical speed (VSI) | derived, see §4.3 | ±100 m/s | 0 at 9 o'clock, ±85° |
 
-Plus: minimap (unchanged), an **ASSIST** lamp reading `AutoLevelOn`, and the two
-digital readouts.
+Plus: minimap (unchanged), an **ASSIST** lamp reading `AutoLevelOn`, a **GEAR**
+lamp reading `GearDown` (§3.4), a **FUEL** bar (§3.5), and the two digital
+readouts.
 
 ### 3.1 Calibration notes
 
@@ -108,7 +114,8 @@ digital readouts.
   rate. In this flight model heading rate is strictly proportional to bank
   (`heading += (bank / MaxBankDeg) * TurnRateDegAtMaxBank * dt`), so banking the
   symbol proportionally to bank conveys exactly the same information without
-  duplicating `FlightConfig` values into the display layer.
+  duplicating `FlightConfig` values into the display layer. Its **slip ball** is
+  a static graphic pinned at centre — see §3.3.
 - **Vertical speed:** the envelope is ±130 × sin(45°) ≈ ±92 m/s, so ±100 covers
   it. Ticks every 20.
 
@@ -127,7 +134,57 @@ Using the §4.1 convention (0° = 12 o'clock, positive = clockwise):
 
 The altimeter and heading indicator do not use `GaugeScale` — see §4.2 and §4.4.
 
-### 3.3 Deliberately excluded
+### 3.3 Slip ball
+
+Part of the turn coordinator's face, not a separate instrument. A static graphic
+pinned at centre; no component, no code.
+
+This aircraft has **no sideslip by construction**. `FlightModel` integrates
+position along `Quaternion.Euler(-Pitch, Heading, 0) * Vector3.forward`, so
+velocity is always exactly along the nose, and heading rate is a fixed function
+of bank (`FlightModel.cs:40`) regardless of the auto-level assist. Every turn is
+perfectly coordinated whether the assist is on or off.
+
+A centred ball is therefore **accurate, not decorative** — it correctly reports a
+coordinated turn. It is included because it states something true and completes
+the instrument's face. It also comes alive for free if a rudder axis is ever
+added: the ball would then read a `SideslipDegrees` property on
+`IAircraftState`, and nothing else would change.
+
+### 3.4 Landing gear — live
+
+Real toggled state, not a placeholder:
+
+- `ToggleGear` action added to the `Flight` map, bound to **G**.
+- `AircraftController` holds `bool _gearDown` (default `true`), toggled on the
+  action, exposed as `GearDown` on `IAircraftState`.
+- The **GEAR** lamp reads it: `DOWN` / `UP`.
+
+Gear applies no drag and no force — `FlightModel` stays untouched. The
+placeholder aircraft has no gear geometry, so the lamp is the only feedback for
+now; a real model can animate later without changing this wiring.
+
+### 3.5 Fuel — static placeholder
+
+**This is the one dial on the panel that does not tell the truth.** The needle
+sits at full and never moves, no matter how far or how fast the player flies.
+
+Recorded explicitly so it is not mistaken for finished work. It is a deliberate,
+owner-approved deferral: the panel real estate and the visual are built now, the
+behaviour is wired later.
+
+Implemented as a `FuelGauge` component with a serialized
+`[Range(0f, 1f)] float level = 1f`, so the value is a real field that can be
+dragged in the Inspector, and the later wire-up replaces a constant with a read
+rather than restructuring anything.
+
+The obvious way to make it live — fuel that drains — was considered and is
+blocked by `Specification.md` §2: fuel reaching zero is a fail state, which is
+ruled out. Two viable routes exist for later: a tank whose endurance far exceeds
+any play session (drains genuinely, never strands anyone), or refuelling by
+landing at the airport (needs its own spec — it is new gameplay).
+
+### 3.6 Deliberately excluded
 
 - **RPM / power.** The model's throttle is an accelerator, not a lever
   (`Speed += Throttle * ThrottleAccel * dt`), so there is no persistent throttle
@@ -135,11 +192,8 @@ The altimeter and heading indicator do not use `GaugeScale` — see §4.2 and §
   airspeed needle exactly. Adding a real throttle lever to the flight model was
   considered and rejected — it would change how the aeroplane feels and force a
   re-tune with the player.
-- **Slip ball.** Turns are always coordinated by construction, so it would never
-  leave centre.
-- **Fuel, oil temperature, oil pressure, gear, flaps, mags, NAV/COM/DME/ADF,
-  VOR/OBI.** No engine, systems, or navigation-radio simulation exists to drive
-  them.
+- **Oil temperature, oil pressure, flaps, mags, NAV/COM/DME/ADF, VOR/OBI.** No
+  engine, systems, or navigation-radio simulation exists to drive them.
 
 ---
 
@@ -189,12 +243,28 @@ what the aeroplane does.
 | `HeadingIndicator` | Rotating compass card. Evolved from `HeadingCompass`. |
 | `AttitudeIndicator` | Rolling/sliding ball under a circular mask, fixed aircraft symbol, roll pointer. Evolved from `ArtificialHorizon`. |
 | `GaugeFaceBuilder` | Places tick marks and labels around a circle at `Awake`. |
-| `AnnunciatorLamp` | ASSIST on/off. |
+| `AnnunciatorLamp` | A two-state lamp with serialized on/off captions. Two instances: ASSIST reads `AutoLevelOn`, GEAR reads `GearDown`. |
+| `FuelGauge` | Fills a bar from a serialized `level`. Static today — see §3.5. |
 | `Minimap` | Unchanged; reparented into the panel. |
 
 `NeedleGauge` uses an enum-and-switch rather than an abstract value-source
 hierarchy: fewer types, readable, and Inspector-friendly — which matters because
-calibration happens live.
+calibration happens live. `AnnunciatorLamp` takes the same approach with a
+`LampChannel` enum (`AutoLevel`, `GearDown`).
+
+### 4.4.1 Seam and input changes
+
+The only non-presentation work in this design:
+
+- `IAircraftState` gains `bool GearDown { get; }`.
+- `AircraftController` gains `bool _gearDown = true`, toggled by the new action,
+  and implements the property.
+- `Assets/Input/FlightControls.inputactions` gains a `ToggleGear` button action
+  bound to `<Keyboard>/g`, and the generated wrapper
+  `Assets/Scripts/Flight/FlightControls.cs` is regenerated. (Regenerate into
+  that directory so it compiles into the `Flusi` assembly, as before.)
+
+`FlightModel`, `FlightConfig`, and all 22 EditMode flight tests are untouched.
 
 ### 4.5 Art
 
@@ -216,7 +286,7 @@ the camera rect by construction.
 ### 4.7 Data flow
 
 ```
-AircraftController ──exposes──> IAircraftState   (unchanged)
+AircraftController ──exposes──> IAircraftState   (+ GearDown)
                                       │
                                       ▼
                                 CockpitPanel
@@ -224,10 +294,12 @@ AircraftController ──exposes──> IAircraftState   (unchanged)
      ┌──────────┬──────────┬──────────┼──────────┬──────────┐
      ▼          ▼          ▼          ▼          ▼          ▼
  NeedleGauge  Altimeter  Heading  Attitude   Minimap   Annunciator
-     │          │        Indicator Indicator
+     │          │        Indicator Indicator             (×2)
      ▼          ▼
  GaugeScale  AltimeterScale
  FlightDerivations
+
+ FuelGauge ──reads──> its own serialized level  (not IAircraftState — see §3.5)
 ```
 
 ---
@@ -247,6 +319,11 @@ AircraftController ──exposes──> IAircraftState   (unchanged)
 
 - The panel builds without throwing and all six gauges are present.
 - The panel hides when toggling to orbit view and returns on toggling back.
+- Gear starts down, and `ToggleGear` flips `GearDown` (§3.4). This is real state,
+  so it gets a real test.
+
+No test is written for the fuel gauge beyond it rendering: there is no behaviour
+to assert (§3.5).
 
 **Manual:** the six-year-old. Gauge calibration, panel height and camera field of
 view are tuned in the Editor while flying.
@@ -259,9 +336,12 @@ view are tuned in the Editor while flying.
 `ArtificialHorizon` and `HeadingCompass` are superseded by `AttitudeIndicator`
 and `HeadingIndicator`.
 
-**Kept unchanged:** `IAircraftState`, `Minimap`, `MinimapProjection` (+ its 3
-tests), `HudFormat` (+ its 5 tests — the digital readouts still use it), and the
-entire `Flight` namespace.
+**Extended:** `IAircraftState` (+ `GearDown`), `AircraftController` (gear bool),
+and the input asset (+ `ToggleGear` on **G**) — see §4.4.1.
+
+**Kept unchanged:** `FlightModel`, `FlightConfig`, `Minimap`,
+`MinimapProjection` (+ its 3 tests), `HudFormat` (+ its 5 tests — the digital
+readouts still use it).
 
 ---
 
@@ -285,7 +365,10 @@ entire `Flight` namespace.
 - No 3D cockpit geometry, window frame, or modelled flight deck. The panel stays
   2D screen-space. (Considered and deferred.)
 - No visible yoke or throttle levers.
-- No changes to the flight model, input map, or control scheme.
+- **No changes to the flight model.** `FlightModel` and `FlightConfig` are not
+  touched. The input map does gain one action (`ToggleGear`, §3.4); no existing
+  binding changes and no flying control is altered.
+- No fuel behaviour (§3.5), no rudder or sideslip (§3.3), no RPM (§3.6).
 - No authentic Concorde flight deck. The reference is a light-aircraft panel and
   that is what we build.
 
@@ -297,8 +380,10 @@ entire `Flight` namespace.
 brought in line as part of this work:
 
 - Intro (line ~5): "a 2D instrument HUD" → cockpit instrument panel.
+- §3.3 Keyboard mapping: add the `ToggleGear` row (§3.4).
 - §4 Views & Cameras: the cockpit view description and the "HUD is hidden in
   this view" note.
+- §7.1 Aircraft: `IAircraftState` gains `GearDown`.
 - §7.3 "HUD (2D, screen-space)": retitle and replace with the §4.4 units above.
 - §8 MVP Scope item 4: reword the instrument list.
 - §11 Testing: the HUD bullet.

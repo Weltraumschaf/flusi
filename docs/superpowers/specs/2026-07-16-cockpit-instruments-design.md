@@ -22,8 +22,8 @@ The requested change is structural, not cosmetic. In the reference the panel is
 window above it. That framing is what sells the cockpit.
 
 This is **almost** a presentation-only change. It consumes the existing
-read-only `IAircraftState` seam, and `FlightModel`, `FlightConfig` and all 22
-EditMode flight tests are unchanged.
+read-only `IAircraftState` seam, and `FlightModel`, `FlightConfig` and all 13
+`FlightModelTests` are unchanged.
 
 The one exception is the landing gear (§3.4): it adds a `ToggleGear` action to
 the input asset, a bool to `AircraftController`, and `GearDown` to
@@ -264,7 +264,8 @@ The only non-presentation work in this design:
   `Assets/Scripts/Flight/FlightControls.cs` is regenerated. (Regenerate into
   that directory so it compiles into the `Flusi` assembly, as before.)
 
-`FlightModel`, `FlightConfig`, and all 22 EditMode flight tests are untouched.
+`FlightModel`, `FlightConfig`, and all 13 `FlightModelTests` are untouched.
+(22 is the EditMode *total*, not the flight-test count.)
 
 ### 4.5 Art
 

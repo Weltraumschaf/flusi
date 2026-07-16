@@ -44,6 +44,7 @@ namespace Flusi
         private void Update()
         {
             if (panel == null) return;
+            if (_markers.Count != PointOfInterestRegistry.All.Count) RebuildMarkers();
             if (_state != null && planeBlip != null)
                 Place(planeBlip, new Vector2(_state.WorldPosition.x, _state.WorldPosition.z));
             foreach (var m in _markers)

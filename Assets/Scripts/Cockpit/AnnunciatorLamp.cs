@@ -31,7 +31,7 @@ namespace Flusi
 
         private void Update()
         {
-            if (_state == null) return;
+            if (!AircraftStateRef.IsAlive(_state)) return;
 
             bool on = channel switch
             {

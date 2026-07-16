@@ -48,7 +48,7 @@ namespace Flusi
 
         private void Update()
         {
-            if (_state == null || panelRoot == null || !panelRoot.activeSelf) return;
+            if (!AircraftStateRef.IsAlive(_state) || panelRoot == null || !panelRoot.activeSelf) return;
 
             if (altitudeText != null)
                 altitudeText.text = HudFormat.Altitude(_state.AltitudeMeters);

@@ -28,7 +28,7 @@ namespace Flusi
 
         private void Update()
         {
-            if (_state == null || needle == null) return;
+            if (!AircraftStateRef.IsAlive(_state) || needle == null) return;
 
             float angle = GaugeScale.ValueToAngle(Read(_state), minValue, maxValue,
                                                   startAngle, sweepAngle);

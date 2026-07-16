@@ -22,7 +22,7 @@ namespace Flusi
 
         private void Update()
         {
-            if (_state == null) return;
+            if (!AircraftStateRef.IsAlive(_state)) return;
 
             float altitude = _state.AltitudeMeters;
 

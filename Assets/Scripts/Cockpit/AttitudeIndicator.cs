@@ -26,7 +26,7 @@ namespace Flusi
 
         private void Update()
         {
-            if (_state == null) return;
+            if (!AircraftStateRef.IsAlive(_state)) return;
 
             // The horizon rolls opposite the aircraft, so a right bank tips the
             // horizon line left. Unity's positive Z is counter-clockwise, which

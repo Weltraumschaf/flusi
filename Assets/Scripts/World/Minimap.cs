@@ -45,7 +45,7 @@ namespace Flusi
         {
             if (panel == null) return;
             if (_markers.Count != PointOfInterestRegistry.All.Count) RebuildMarkers();
-            if (_state != null && planeBlip != null)
+            if (AircraftStateRef.IsAlive(_state) && planeBlip != null)
                 Place(planeBlip, new Vector2(_state.WorldPosition.x, _state.WorldPosition.z));
             foreach (var m in _markers)
                 if (m.marker != null) Place(m.marker, m.worldXZ);

@@ -20,7 +20,7 @@ namespace Flusi
 
         private void Update()
         {
-            if (_state == null || card == null) return;
+            if (!AircraftStateRef.IsAlive(_state) || card == null) return;
 
             // The card turns opposite the aircraft so the current heading stays
             // under the lubber line. Heading 90 (east) must bring the card's "E"

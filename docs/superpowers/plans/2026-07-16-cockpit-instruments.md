@@ -1767,9 +1767,188 @@ git commit -m "Update specification for the cockpit instrument panel"
 
 ---
 
+## Task 14: Survive a destroyed aircraft
+
+Added after Task 9, on the owner's instruction: the plane will later be able to
+crash and respawn, which turns this latent bug into a certain one. **Independent
+of Tasks 10–13** — it touches only existing components, no scene data, so it can
+run before or after them.
+
+**Files:**
+- Create: `Assets/Scripts/Flight/AircraftStateRef.cs`
+- Test: `Assets/Tests/EditMode/AircraftStateRefTests.cs`
+- Modify: `Assets/Scripts/Cockpit/NeedleGauge.cs`, `Altimeter.cs`,
+  `AttitudeIndicator.cs`, `HeadingIndicator.cs`, `AnnunciatorLamp.cs`,
+  `CockpitPanel.cs`, and `Assets/Scripts/World/Minimap.cs`
+
+**Interfaces:**
+- Consumes: `IAircraftState`.
+- Produces: `public static bool AircraftStateRef.IsAlive(IAircraftState state)`.
+
+**The bug.** Unity overloads `==` on `UnityEngine.Object` so a destroyed object
+compares equal to null. **That overload is selected by the reference's static
+type.** Every consumer stores the seam as `private IAircraftState _state` — a
+plain C# interface — so the overload never applies. A destroyed `MonoBehaviour`
+compares as *non*-null, `if (_state == null) return;` passes, and the next
+property read throws `MissingReferenceException`. Once per frame, forever.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `Assets/Tests/EditMode/AircraftStateRefTests.cs`:
+
+```csharp
+using NUnit.Framework;
+using UnityEngine;
+
+namespace Flusi.Tests
+{
+    public class AircraftStateRefTests
+    {
+        /// Minimal Unity-object source. Deliberately not AircraftController:
+        /// this test must not depend on that component's Awake/OnDestroy
+        /// lifecycle, only on the destroyed-object semantics.
+        private class StubAircraft : MonoBehaviour, IAircraftState
+        {
+            public float AltitudeMeters => 0f;
+            public float SpeedMetersPerSecond => 0f;
+            public float HeadingDegrees => 0f;
+            public float PitchDegrees => 0f;
+            public float BankDegrees => 0f;
+            public Vector3 WorldPosition => Vector3.zero;
+            public bool AutoLevelOn => true;
+            public bool GearDown => true;
+        }
+
+        /// A plain C# source, as a test double would be. It is not a
+        /// UnityEngine.Object and must not be mistaken for a destroyed one.
+        private class FakeAircraft : IAircraftState
+        {
+            public float AltitudeMeters => 0f;
+            public float SpeedMetersPerSecond => 0f;
+            public float HeadingDegrees => 0f;
+            public float PitchDegrees => 0f;
+            public float BankDegrees => 0f;
+            public Vector3 WorldPosition => Vector3.zero;
+            public bool AutoLevelOn => true;
+            public bool GearDown => true;
+        }
+
+        [Test]
+        public void Null_Is_Not_Alive()
+            => Assert.IsFalse(AircraftStateRef.IsAlive(null));
+
+        [Test]
+        public void Live_Component_Is_Alive()
+        {
+            var go = new GameObject("stub");
+            IAircraftState state = go.AddComponent<StubAircraft>();
+            Assert.IsTrue(AircraftStateRef.IsAlive(state));
+            Object.DestroyImmediate(go);
+        }
+
+        // The test that matters: this is what a naive `state != null` fails.
+        [Test]
+        public void Destroyed_Component_Is_Not_Alive()
+        {
+            var go = new GameObject("stub");
+            IAircraftState state = go.AddComponent<StubAircraft>();
+            Object.DestroyImmediate(go);
+
+            Assert.IsFalse(AircraftStateRef.IsAlive(state),
+                "a destroyed source must not read as alive through an interface field");
+        }
+
+        [Test]
+        public void Plain_CSharp_Source_Is_Alive()
+            => Assert.IsTrue(AircraftStateRef.IsAlive(new FakeAircraft()),
+                "a non-Unity implementation has no destroyed state and must stay usable");
+    }
+}
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Controller runs `FlusiTestRunner.RunEditMode()`. Expected: compile error —
+`AircraftStateRef` does not exist.
+
+**Then mutation-check `Destroyed_Component_Is_Not_Alive` once the type exists:**
+temporarily implement `IsAlive` as `state != null` and confirm that test FAILS.
+If it passes, the test is not proving anything and the whole task is theatre.
+Restore the real implementation afterwards.
+
+- [ ] **Step 3: Write the implementation**
+
+Create `Assets/Scripts/Flight/AircraftStateRef.cs`:
+
+```csharp
+namespace Flusi
+{
+    /// Guards for holding an IAircraftState across the aircraft's destruction.
+    ///
+    /// Lives beside IAircraftState rather than in Cockpit/, because it is a
+    /// property of the seam itself — World/Minimap.cs needs it too.
+    public static class AircraftStateRef
+    {
+        /// True when `state` is present and safe to read this frame.
+        ///
+        /// A plain `state != null` is NOT enough. Unity overloads == on
+        /// UnityEngine.Object so a destroyed object compares equal to null, but
+        /// that overload is chosen by the reference's STATIC type. Through an
+        /// IAircraftState-typed field the static type is a plain C# interface,
+        /// so the overload never applies: a destroyed MonoBehaviour compares as
+        /// non-null and the next property read throws MissingReferenceException
+        /// — once per frame, forever.
+        ///
+        /// The pattern match below recovers the UnityEngine.Object static type,
+        /// which brings the overload back. A non-Unity implementation (a test
+        /// double) is not a UnityEngine.Object and has no destroyed state, so it
+        /// stays alive while non-null.
+        public static bool IsAlive(IAircraftState state)
+            => state != null && !(state is UnityEngine.Object o && o == null);
+    }
+}
+```
+
+- [ ] **Step 4: Route all seven consumers through it**
+
+In each file below, replace the `_state` null guard **inside the per-frame
+method** with `AircraftStateRef.IsAlive(_state)`. Leave the `Awake` assignment
+guards (`if (_state == null && aircraftSource != null)`) alone — those run once,
+before anything can be destroyed, and `_state` there is genuinely just unset.
+
+| File | Replace | With |
+| --- | --- | --- |
+| `Cockpit/NeedleGauge.cs` | `if (_state == null \|\| needle == null) return;` | `if (!AircraftStateRef.IsAlive(_state) \|\| needle == null) return;` |
+| `Cockpit/Altimeter.cs` | `if (_state == null) return;` | `if (!AircraftStateRef.IsAlive(_state)) return;` |
+| `Cockpit/AttitudeIndicator.cs` | `if (_state == null) return;` | `if (!AircraftStateRef.IsAlive(_state)) return;` |
+| `Cockpit/HeadingIndicator.cs` | `if (_state == null \|\| card == null) return;` | `if (!AircraftStateRef.IsAlive(_state) \|\| card == null) return;` |
+| `Cockpit/AnnunciatorLamp.cs` | `if (_state == null) return;` | `if (!AircraftStateRef.IsAlive(_state)) return;` |
+| `Cockpit/CockpitPanel.cs` | `if (_state == null \|\| panelRoot == null \|\| !panelRoot.activeSelf) return;` | `if (!AircraftStateRef.IsAlive(_state) \|\| panelRoot == null \|\| !panelRoot.activeSelf) return;` |
+| `World/Minimap.cs` | `if (_state != null && planeBlip != null)` | `if (AircraftStateRef.IsAlive(_state) && planeBlip != null)` |
+
+`Minimap.cs` line ~22's `if (_state == null)` sits in its `Awake`-time
+assignment — leave it.
+
+- [ ] **Step 5: Run tests**
+
+Expected: EditMode `passed=41` (37 + 4 new). PlayMode `passed=4`, unchanged.
+**Check `Unity_GetConsoleLogs` for errors before believing any green** — see
+"Running tests".
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add Assets/Scripts/Flight/ Assets/Scripts/Cockpit/ Assets/Scripts/World/ \
+        Assets/Tests/EditMode/AircraftStateRefTests.cs
+git status --short   # AircraftStateRef.cs.meta + AircraftStateRefTests.cs.meta staged
+git commit -m "Survive a destroyed aircraft in every state consumer"
+```
+
+---
+
 ## Done
 
-**EditMode: 22 today → 37.**
+**EditMode: 22 today → 41** (37 after Task 13, plus 4 from Task 14).
 
 | | |
 | --- | --- |
@@ -1778,6 +1957,7 @@ git commit -m "Update specification for the cockpit instrument panel"
 | 5 | `AltimeterScaleTests` (new, Task 2) |
 | 5 | `FlightDerivationsTests` (new, Task 2) |
 | 2 | `HudFormatTests` (was 5; Task 9 retires the 3 Compass tests) |
+| 4 | `AircraftStateRefTests` (new, Task 14) |
 | 3 | `MinimapProjectionTests` — untouched |
 | 1 | `HarnessTest` — untouched |
 

@@ -252,6 +252,41 @@ hierarchy: fewer types, readable, and Inspector-friendly — which matters becau
 calibration happens live. `AnnunciatorLamp` takes the same approach with a
 `LampChannel` enum (`AutoLevel`, `GearDown`).
 
+### 4.4.0 Surviving a destroyed aircraft
+
+Every consumer holds the seam as a plain C# interface field
+(`private IAircraftState _state`). **A `_state != null` guard does not work
+there**, and the reason is a genuine Unity trap:
+
+Unity overloads `==` on `UnityEngine.Object` so that a *destroyed* object
+compares equal to null. That overload is chosen by the reference's **static
+type**. Through an `IAircraftState`-typed field the static type is a plain C#
+interface, so the overload never applies — a destroyed `MonoBehaviour` compares
+as non-null, the guard passes, and the next property read throws
+`MissingReferenceException`. In an `Update`, that is once per frame, forever.
+
+Today nothing destroys the aircraft, so this is latent. It stops being latent the
+moment the plane can crash and respawn, which is planned. Fixing it after that
+feature lands means debugging seven components at once, in a console already full
+of exceptions.
+
+**`AircraftStateRef.IsAlive(IAircraftState)`** is the single guard all consumers
+use:
+
+```csharp
+public static bool IsAlive(IAircraftState state)
+    => state != null && !(state is UnityEngine.Object o && o == null);
+```
+
+The pattern match recovers the `UnityEngine.Object` static type, which brings
+Unity's overloaded `==` back into play. A non-Unity implementation (a test
+double) is not a `UnityEngine.Object`, so it stays alive while non-null — the
+guard must not punish plain C# sources.
+
+It lives next to `IAircraftState` in `Assets/Scripts/Flight/`, because it is a
+property of the seam rather than of the panel, and `World/Minimap.cs` needs it
+too.
+
 ### 4.4.1 Seam and input changes
 
 The only non-presentation work in this design:

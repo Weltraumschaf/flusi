@@ -26,9 +26,17 @@ Section references below (§3.4, §3.5, …) point at that document.
 - **New Input System only.** Never use `UnityEngine.Input` or `Input.GetAxis`.
 - **Do not add packages or dependencies.** (Project CLAUDE.md.) If a task seems
   to need one, stop and ask.
-- **No texture or art assets.** Faces come from
-  `Resources.GetBuiltinResource<Sprite>("UI/Skin/Knob.psd")` (a filled circle)
-  and `Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")`.
+- **No texture or art assets.** Faces come from Unity's built-ins: the
+  `UI/Skin/Knob.psd` sprite (a filled circle) and the `LegacyRuntime.ttf` font.
+  **They live in two different stores and need two different APIs** — verified
+  empirically, do not guess:
+  - Font: `Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")` ✅
+  - Sprite: `AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd")` ✅
+  - Sprite via `Resources.GetBuiltinResource<Sprite>(…)` ❌ **returns null** and
+    logs "could not be loaded from the resource file". `AssetDatabase` is
+    Editor-only, which is fine: the sprite is assigned to a serialized field at
+    edit time (Task 10), so it bakes into the scene and ships. Nothing loads a
+    sprite at runtime.
 - **Namespace is flat `Flusi`** for runtime code and `Flusi.Tests` for tests.
   Folders are organisational only.
 - **Angle convention:** degrees, `0` = needle points at 12 o'clock, positive =
@@ -1413,14 +1421,20 @@ of the panel, holding six children in a 2×3 grid — top row `Airspeed`,
 Each gauge shell gets a circular face using the built-in circle sprite:
 
 ```csharp
-var sprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/Knob.psd");
-face.GetComponent<UnityEngine.UI.Image>().sprite = sprite;
-face.GetComponent<UnityEngine.UI.Image>().color = new Color(0.05f, 0.05f, 0.06f, 1f);
+// AssetDatabase, NOT Resources — see Global Constraints. Resources
+// .GetBuiltinResource<Sprite> returns null for UI sprites.
+var sprite = UnityEditor.AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
+var img = face.GetComponent<UnityEngine.UI.Image>();
+img.sprite = sprite;
+img.color = new Color(0.05f, 0.05f, 0.06f, 1f);
 ```
 
-Fully-qualify `UnityEngine.UI.Image` — `Image` alone collides with the
-`UnityEngine.UI.Image` / `UnityEngine.Experimental` namespaces and produced
-`CS0118: 'Image' is a namespace but is used like a type` in earlier work.
+Assigning at edit time is what makes the Editor-only `AssetDatabase` call safe:
+the sprite reference serializes into the scene and ships.
+
+Fully-qualify `UnityEngine.UI.Image` — bare `Image` collides with a namespace and
+raises `CS0118: 'Image' is a namespace but is used like a type`. This has now
+bitten twice in this project, including once in a throwaway probe.
 
 - [ ] **Step 5: Add needles and wire the components**
 

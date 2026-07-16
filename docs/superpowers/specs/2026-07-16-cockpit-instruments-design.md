@@ -272,11 +272,25 @@ The only non-presentation work in this design:
 No texture assets and no new dependencies. Faces are assembled from Unity
 built-ins:
 
-- Circle face and bezel: `Resources.GetBuiltinResource<Sprite>("UI/Skin/Knob.psd")`.
+- Circle face and bezel: the built-in `UI/Skin/Knob.psd` sprite.
 - Circular mask for the attitude ball: `Mask` + the same sprite.
 - Labels: `Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")`, already used
   in this project.
 - Ticks and needles: plain `Image` rectangles positioned by `GaugeFaceBuilder`.
+
+**Two different built-in stores — do not mix them up.** Verified empirically:
+
+| Want | API | Works? |
+| --- | --- | --- |
+| `LegacyRuntime.ttf` (font) | `Resources.GetBuiltinResource<Font>(…)` | yes |
+| `UI/Skin/Knob.psd` (sprite) | `Resources.GetBuiltinResource<Sprite>(…)` | **no** — returns null and logs "could not be loaded from the resource file" |
+| `UI/Skin/Knob.psd` (sprite) | `AssetDatabase.GetBuiltinExtraResource<Sprite>(…)` | yes |
+
+UI sprites live in the *builtin extra* store, reachable only through
+`AssetDatabase` — which is Editor-only. That is not a problem here: the sprite is
+assigned into a serialized field at edit time (§4.4 scene assembly), so the
+reference is baked into the scene and ships with the build. Nothing loads it at
+runtime.
 
 ### 4.6 Panel anchoring
 

@@ -147,6 +147,15 @@ namespace Flusi
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""ToggleGear"",
+                    ""type"": ""Button"",
+                    ""id"": ""3f0c1a52-9b7e-4d61-8a4c-2e5b90d7c118"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -303,6 +312,17 @@ namespace Flusi
                     ""action"": ""ToggleView"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""b71d4e39-0c86-49f2-95a3-6d148ae2c503"",
+                    ""path"": ""<Keyboard>/g"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""ToggleGear"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -317,6 +337,7 @@ namespace Flusi
             m_Flight_OrbitLook = m_Flight.FindAction("OrbitLook", throwIfNotFound: true);
             m_Flight_ToggleAutoLevel = m_Flight.FindAction("ToggleAutoLevel", throwIfNotFound: true);
             m_Flight_ToggleView = m_Flight.FindAction("ToggleView", throwIfNotFound: true);
+            m_Flight_ToggleGear = m_Flight.FindAction("ToggleGear", throwIfNotFound: true);
         }
 
         ~@FlightControls()
@@ -403,6 +424,7 @@ namespace Flusi
         private readonly InputAction m_Flight_OrbitLook;
         private readonly InputAction m_Flight_ToggleAutoLevel;
         private readonly InputAction m_Flight_ToggleView;
+        private readonly InputAction m_Flight_ToggleGear;
         /// <summary>
         /// Provides access to input actions defined in input action map "Flight".
         /// </summary>
@@ -438,6 +460,10 @@ namespace Flusi
             /// Provides access to the underlying input action "Flight/ToggleView".
             /// </summary>
             public InputAction @ToggleView => m_Wrapper.m_Flight_ToggleView;
+            /// <summary>
+            /// Provides access to the underlying input action "Flight/ToggleGear".
+            /// </summary>
+            public InputAction @ToggleGear => m_Wrapper.m_Flight_ToggleGear;
             /// <summary>
             /// Provides access to the underlying input action map instance.
             /// </summary>
@@ -482,6 +508,9 @@ namespace Flusi
                 @ToggleView.started += instance.OnToggleView;
                 @ToggleView.performed += instance.OnToggleView;
                 @ToggleView.canceled += instance.OnToggleView;
+                @ToggleGear.started += instance.OnToggleGear;
+                @ToggleGear.performed += instance.OnToggleGear;
+                @ToggleGear.canceled += instance.OnToggleGear;
             }
 
             /// <summary>
@@ -511,6 +540,9 @@ namespace Flusi
                 @ToggleView.started -= instance.OnToggleView;
                 @ToggleView.performed -= instance.OnToggleView;
                 @ToggleView.canceled -= instance.OnToggleView;
+                @ToggleGear.started -= instance.OnToggleGear;
+                @ToggleGear.performed -= instance.OnToggleGear;
+                @ToggleGear.canceled -= instance.OnToggleGear;
             }
 
             /// <summary>
@@ -593,6 +625,13 @@ namespace Flusi
             /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
             /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
             void OnToggleView(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "ToggleGear" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnToggleGear(InputAction.CallbackContext context);
         }
     }
 }

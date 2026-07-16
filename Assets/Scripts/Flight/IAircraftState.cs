@@ -13,5 +13,6 @@ namespace Flusi
         float BankDegrees { get; }
         Vector3 WorldPosition { get; }
         bool AutoLevelOn { get; }
+        bool GearDown { get; }
     }
 }

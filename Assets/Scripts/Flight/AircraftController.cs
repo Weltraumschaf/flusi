@@ -9,6 +9,7 @@ namespace Flusi
         [SerializeField] private FlightConfig config = FlightConfig.Default;
         [SerializeField] private float startSpeed = 80f;
         [SerializeField] private bool autoLevelOn = true;
+        [SerializeField] private bool gearDown = true;
 
         private FlightControls _controls;
         private FlightState _state;
@@ -23,6 +24,7 @@ namespace Flusi
         public float BankDegrees => _state.Bank;
         public Vector3 WorldPosition => _state.Position;
         public bool AutoLevelOn => autoLevelOn;
+        public bool GearDown => gearDown;
 
         private void Awake()
         {
@@ -39,11 +41,13 @@ namespace Flusi
         {
             _controls.Enable();
             _controls.Flight.ToggleAutoLevel.performed += OnToggleAutoLevel;
+            _controls.Flight.ToggleGear.performed += OnToggleGear;
         }
 
         private void OnDisable()
         {
             _controls.Flight.ToggleAutoLevel.performed -= OnToggleAutoLevel;
+            _controls.Flight.ToggleGear.performed -= OnToggleGear;
             _controls.Disable();
         }
 
@@ -51,6 +55,13 @@ namespace Flusi
 
         private void OnToggleAutoLevel(UnityEngine.InputSystem.InputAction.CallbackContext _)
             => autoLevelOn = !autoLevelOn;
+
+        /// Public so tests and future cockpit switches can toggle the gear
+        /// without synthesising keyboard input.
+        public void ToggleGear() => gearDown = !gearDown;
+
+        private void OnToggleGear(UnityEngine.InputSystem.InputAction.CallbackContext _)
+            => ToggleGear();
 
         private void FixedUpdate()
         {

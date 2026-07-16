@@ -56,6 +56,14 @@ Flusi.EditorTools.FlusiTestRunner.RunEditMode();   // or RunPlayMode()
 Then poll `Temp/flusi-tests.txt` for `STATUS Passed` / `STATUS Failed` and read
 `Temp/flusi-tests-failures.txt` for failure detail.
 
+**A green result is meaningless until you have checked for compile errors.**
+When compilation fails, Unity's test runner does not fail — it silently runs the
+last successfully-built assemblies and reports a *stale* pass. Task 2 hit this:
+it reported `passed=40` while the project did not compile at all, and the count
+looked plausible. **Always call `mcp__unity__Unity_GetConsoleLogs` with
+`logTypes: "error"` and confirm zero errors before believing any test result.**
+An unexpected count — even a passing one — means look at the console, not shrug.
+
 **Per-task ordering — do not deviate:**
 
 1. Subagent writes the code and tests.
@@ -107,9 +115,14 @@ is reparented, in Task 11.
 
 Spec §6 says `HudFormat` keeps "its 5 tests". That is wrong. `HudFormat.Compass`
 is called only from `HudController`, which this plan deletes; the
-`HeadingIndicator` supersedes it. Task 2 therefore deletes `HudFormat.Compass`
-and its 3 tests (`Compass_North_IsN`, `Compass_East_IsE`, `Compass_Wraps`),
-leaving 2. Dead code with passing tests is still dead code.
+`HeadingIndicator` supersedes it. It and its 3 tests (`Compass_North_IsN`,
+`Compass_East_IsE`, `Compass_Wraps`) go, leaving 2. Dead code with passing tests
+is still dead code.
+
+**They go in Task 9, together with `HudController`** — not earlier. `Compass` is
+dead only *once its caller is gone*; deleting it while `HudController` still
+calls it breaks the build for every task in between. (This plan originally put
+the deletion in Task 2 and did exactly that.)
 
 ---
 
@@ -388,54 +401,26 @@ git mv Assets/Scripts/Hud/HudFormat.cs Assets/Scripts/Cockpit/HudFormat.cs
 git mv Assets/Scripts/Hud/HudFormat.cs.meta Assets/Scripts/Cockpit/HudFormat.cs.meta
 ```
 
-Replace the contents of `Assets/Scripts/Cockpit/HudFormat.cs` with:
+Make exactly one edit to `Assets/Scripts/Cockpit/HudFormat.cs` — route `Speed`
+through the new `SpeedKmh` so the ×3.6 constant lives in one place:
 
 ```csharp
-using UnityEngine;
-
-namespace Flusi
-{
-    /// Strings for the panel's digital readouts.
-    public static class HudFormat
-    {
-        public static string Altitude(float metres) => $"{Mathf.RoundToInt(metres)} m";
-
         public static string Speed(float metresPerSecond)
             => $"{Mathf.RoundToInt(FlightDerivations.SpeedKmh(metresPerSecond))} km/h";
-    }
-}
 ```
 
-`Compass` is gone: its only caller was `HudController`, which Task 9 deletes, and
-`HeadingIndicator` (Task 7) supersedes it.
+**Leave `Compass` and its 3 tests alone.** They are dead code, but only once
+`HudController` — their sole caller — is gone. Task 9 deletes all of it together.
+Removing `Compass` here breaks the build for Tasks 2 through 8.
 
-Now delete its tests. In `Assets/Tests/EditMode/HudFormatTests.cs`, remove
-`Compass_North_IsN`, `Compass_East_IsE` and `Compass_Wraps`, leaving exactly:
-
-```csharp
-using NUnit.Framework;
-
-namespace Flusi.Tests
-{
-    public class HudFormatTests
-    {
-        [Test]
-        public void Altitude_RoundsToWholeMetres()
-            => Assert.AreEqual("1235 m", HudFormat.Altitude(1234.6f));
-
-        [Test]
-        public void Speed_ConvertsMpsToKmh()
-            => Assert.AreEqual("360 km/h", HudFormat.Speed(100f));
-    }
-}
-```
+`HudFormatTests.cs` is not touched by this task.
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Expected: `STATUS Passed`, `passed=37` — Task 1 left 30, and this task is
-−3 (Compass) +5 (AltimeterScale) +5 (FlightDerivations) = +7.
-The two surviving `HudFormat` tests must still pass — that is what proves the
-`SpeedKmh` refactor did not change behaviour.
+Expected: `STATUS Passed`, `passed=40` — Task 1 left 30, plus 5 `AltimeterScale`
+and 5 `FlightDerivations`. `Compass` and its 3 tests stay until Task 9.
+All 5 `HudFormat` tests must still pass — that is what proves the `SpeedKmh`
+refactor did not change behaviour.
 
 - [ ] **Step 6: Stage metas and commit**
 
@@ -638,7 +623,7 @@ Add the toggle next to `OnToggleAutoLevel`:
 - [ ] **Step 7: Run PlayMode tests to verify they pass**
 
 Expected: `STATUS Passed`, `passed=4` (1 aircraft smoke + 2 POI registry + 1 new
-gear test). Then run EditMode too and confirm all 37 are still green, the 13
+gear test). Then run EditMode too and confirm all 40 are still green, the 13
 `FlightModelTests` among them — the seam changed, so prove nothing regressed.
 
 - [ ] **Step 8: Stage metas and commit**
@@ -1228,6 +1213,8 @@ git commit -m "Add annunciator lamps and the fuel placeholder gauge"
 - Create: `Assets/Scripts/Cockpit/CockpitPanel.cs`
 - Delete: `Assets/Scripts/Hud/HudController.cs` (+ `.meta`)
 - Delete: the now-empty `Assets/Scripts/Hud/` directory (+ `Hud.meta`)
+- Modify: `Assets/Scripts/Cockpit/HudFormat.cs` (drop `Compass` + `Points`)
+- Modify: `Assets/Tests/EditMode/HudFormatTests.cs` (drop the 3 Compass tests)
 
 **Interfaces:**
 - Consumes: `IAircraftState`, `CameraRig.ViewChanged` and `CameraRig.Current`
@@ -1310,15 +1297,68 @@ git rm Assets/Scripts/Hud.meta
 rmdir Assets/Scripts/Hud    # must now be empty; if it is not, stop and report
 ```
 
-- [ ] **Step 3: Verify it compiles**
+- [ ] **Step 3: Now retire the dead `Compass`**
 
-Expected: no errors. Missing-script warnings on `SampleScene` remain until
-Task 10 — still expected.
+`HudController` was `HudFormat.Compass`'s only caller, and it is gone as of Step
+2, so `Compass` is now dead — and only now safe to remove. **This deletion and
+Step 2 must land in the same commit**; splitting them breaks the build in between.
 
-- [ ] **Step 4: Commit**
+From `Assets/Scripts/Cockpit/HudFormat.cs`, delete the `Points` array and the
+whole `Compass` method, leaving exactly:
+
+```csharp
+using UnityEngine;
+
+namespace Flusi
+{
+    /// Strings for the panel's digital readouts.
+    public static class HudFormat
+    {
+        public static string Altitude(float metres) => $"{Mathf.RoundToInt(metres)} m";
+
+        public static string Speed(float metresPerSecond)
+            => $"{Mathf.RoundToInt(FlightDerivations.SpeedKmh(metresPerSecond))} km/h";
+    }
+}
+```
+
+From `Assets/Tests/EditMode/HudFormatTests.cs`, delete `Compass_North_IsN`,
+`Compass_East_IsE` and `Compass_Wraps`, leaving exactly:
+
+```csharp
+using NUnit.Framework;
+
+namespace Flusi.Tests
+{
+    public class HudFormatTests
+    {
+        [Test]
+        public void Altitude_RoundsToWholeMetres()
+            => Assert.AreEqual("1235 m", HudFormat.Altitude(1234.6f));
+
+        [Test]
+        public void Speed_ConvertsMpsToKmh()
+            => Assert.AreEqual("360 km/h", HudFormat.Speed(100f)); // 100 m/s = 360 km/h
+    }
+}
+```
+
+- [ ] **Step 4: Verify it compiles, then test**
+
+Controller: **check `mcp__unity__Unity_GetConsoleLogs` for errors BEFORE trusting
+any test result.** When compilation fails, Unity's test runner silently runs the
+last successfully-built assemblies and reports a stale pass — this exact trap
+produced a bogus green earlier in this plan.
+
+Expected: no errors. Then EditMode `passed=37` — down 3 from 40, which is the
+Compass tests going. Missing-script warnings on `SampleScene` remain until Task
+10 and are expected.
+
+- [ ] **Step 5: Commit**
 
 ```bash
-git add Assets/Scripts/Cockpit/ Assets/Scripts/Hud.meta Assets/Scripts/Hud/
+git add Assets/Scripts/Cockpit/ Assets/Scripts/Hud.meta Assets/Scripts/Hud/ \
+        Assets/Tests/EditMode/HudFormatTests.cs
 git status --short
 git commit -m "Replace the HUD controller with the cockpit panel"
 ```
@@ -1723,7 +1763,7 @@ git commit -m "Update specification for the cockpit instrument panel"
 | 8 | `GaugeScaleTests` (new, Task 1) |
 | 5 | `AltimeterScaleTests` (new, Task 2) |
 | 5 | `FlightDerivationsTests` (new, Task 2) |
-| 2 | `HudFormatTests` (was 5; Task 2 retires the 3 Compass tests) |
+| 2 | `HudFormatTests` (was 5; Task 9 retires the 3 Compass tests) |
 | 3 | `MinimapProjectionTests` — untouched |
 | 1 | `HarnessTest` — untouched |
 

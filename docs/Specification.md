@@ -2,13 +2,15 @@
 
 A simple flight simulator built as a gift for a six-year-old. The player flies a
 Concorde over a handcrafted island in a calm, no-pressure sandbox, with an
-easy keyboard control scheme, a 2D instrument HUD, and switchable cockpit and
-external views.
+easy keyboard control scheme, a cockpit instrument panel, and switchable cockpit
+and external views.
 
 - **Engine:** Unity 6 (6000.3.19f1), C#, Universal Render Pipeline (URP).
 - **Input:** New Input System (`com.unity.inputsystem`), keyboard only in v1.
 - **Platforms:** macOS and Linux standalone.
 - **Date:** 2026-07-15.
+- **Amended:** 2026-07-16 — cockpit instrument panel replaces the HUD; see
+  `docs/superpowers/specs/2026-07-16-cockpit-instruments-design.md`.
 
 ---
 
@@ -63,7 +65,8 @@ Arcade rules the model enforces:
 - Acts like training wheels. When **on**, releasing the controls returns the plane
   smoothly to level flight; the player cannot get badly disoriented.
 - **Default: ON.** A single key toggles it off for full manual control and back on
-  again. The current state is exposed to the HUD (§4).
+  again. The current state is exposed to the instrument panel (§4), which reports
+  it on the ASSIST lamp.
 
 ### 3.3 Keyboard mapping (New Input System)
 
@@ -77,6 +80,7 @@ Input System, a gamepad or other device can be added later without code changes.
 | `Throttle`        | Increase / decrease speed                          |
 | `ToggleAutoLevel` | Enable/disable the self-levelling assist           |
 | `ToggleView`      | Switch between cockpit and external orbit view     |
+| `ToggleGear`      | Raise / lower the landing gear                     |
 | `OrbitLook`       | Rotate the external orbit camera around the plane  |
 
 (Concrete key choices are finalised during implementation and tuned in playtest.)
@@ -87,11 +91,11 @@ Input System, a gamepad or other device can be added later without code changes.
 
 Two views, toggled with `ToggleView`:
 
-- **Cockpit (first-person):** view from the nose of the plane. The 2D instrument
-  HUD is shown in this view.
+- **Cockpit (first-person):** view from the nose of the plane. The instrument panel
+  fills the bottom third of the screen; the world is a window above it.
 - **External orbit:** camera tracks the plane's position while `OrbitLook` rotates
   the viewing angle around it. Works both in flight and parked, for admiring the
-  Concorde. HUD is hidden in this view.
+  Concorde. The panel is hidden in this view.
 
 A `CameraRig` owns the switch; `CockpitCamera` and `OrbitCamera` are separate
 units. Chase and cinematic/flyby cameras are **post-MVP** (§8).
@@ -142,7 +146,9 @@ Handled by the kinematic model, always gentle:
 ## 7. Architecture
 
 Each unit has one responsibility. Instruments and the minimap depend on a
-**read-only state interface**, never on flight internals.
+**read-only state interface**, never on flight internals. The panel's own
+architecture is specified in
+`docs/superpowers/specs/2026-07-16-cockpit-instruments-design.md`.
 
 ### 7.1 Aircraft
 
@@ -151,10 +157,12 @@ Each unit has one responsibility. Instruments and the minimap depend on a
   scene dependencies beyond math, so it is EditMode unit-testable.
 - **`AircraftController`** (`MonoBehaviour`) — reads the Input System, calls
   `FlightModel` each `FixedUpdate`, applies the result to the transform, and owns
-  the auto-level toggle state.
+  the auto-level and landing-gear toggle state.
 - **`IAircraftState`** — read-only interface exposing altitude, speed, heading,
-  pitch, bank, world position, and auto-level state. Implemented by the controller;
-  consumed by the HUD and minimap so they never touch flight internals.
+  pitch, bank, world position, auto-level state, and gear state. Implemented by the
+  controller; consumed by the instrument panel and minimap so they never touch
+  flight internals. Gear is toggled state only: it applies no force, so
+  `FlightModel` never sees it.
 
 ### 7.2 Cameras
 
@@ -162,11 +170,38 @@ Each unit has one responsibility. Instruments and the minimap depend on a
 - **`CockpitCamera`** — first-person view from the nose.
 - **`OrbitCamera`** — tracks plane position; `OrbitLook` rotates the angle.
 
-### 7.3 HUD (2D, screen-space)
+### 7.3 Cockpit panel (2D, screen-space)
 
-- **`HudController`** — owns the instrument widgets and shows/hides the HUD per
-  view (visible in cockpit, hidden in orbit).
-- Each **instrument widget** reads `IAircraftState`. See §8 for the v1 set.
+An opaque panel across the bottom third of the screen, carrying the standard
+light-aircraft "six pack" plus a minimap, annunciator lamps and a fuel bar.
+Pure static maths sits behind thin `MonoBehaviour`s, the same pattern as
+`MinimapProjection`, so the calculations are EditMode-testable.
+
+- **`CockpitPanel`** — owns the panel root, showing it in cockpit view and hiding
+  it in orbit, and feeds the two digital readouts.
+- **`NeedleGauge`** — one single-needle gauge, three instances distinguished by a
+  `GaugeChannel` enum (`AirspeedKmh`, `VerticalSpeed`, `BankDegrees`): the
+  airspeed indicator, the vertical speed indicator and the turn coordinator.
+- **`Altimeter`** — two needles, hundreds and thousands, from one altitude.
+- **`AttitudeIndicator`** — rolling and sliding horizon ball behind a circular
+  mask, under a fixed aircraft symbol.
+- **`HeadingIndicator`** — rotating compass card under a fixed lubber line.
+- **`AnnunciatorLamp`** — two-state lamp, two instances via a `LampChannel` enum:
+  ASSIST reads `AutoLevelOn`, GEAR reads `GearDown`.
+- **`FuelGauge`** — fills a bar from a serialized level. **Static placeholder:**
+  there is no fuel burn, so it reports nothing real. Deliberate, not an
+  oversight — draining fuel would be a fail state, which §2 rules out.
+- **`GaugeScale`**, **`AltimeterScale`**, **`FlightDerivations`** — pure needle,
+  altimeter and derived-value maths.
+- **`GaugeFaceBuilder`** — builds tick marks and labels around a circle at
+  `Awake`, from Unity built-in sprites and fonts. No art assets.
+
+Every gauge reads `IAircraftState` and nothing else. `AircraftStateRef.IsAlive`
+guards those reads, because a destroyed aircraft does not compare equal to null
+through an interface-typed field.
+
+The cockpit camera's rect is restricted to the top two thirds so the world is a
+real window above the panel rather than being drawn behind it.
 
 ### 7.4 World services
 
@@ -188,7 +223,7 @@ Input System ──> AircraftController ──(controls + autoLevel + dt)──>
                         ▼
         ┌───────────────┴───────────────┐
         ▼                               ▼
-   HUD instruments              minimap (+ POI registry)
+  panel instruments             minimap (+ POI registry)
 
 CameraRig ──reads──> transform (cockpit follows nose / orbit tracks position)
 ```
@@ -202,9 +237,11 @@ The first playable milestone — build this first:
 1. Keyboard `Flight` action map + kinematic `FlightModel` with the auto-level toggle.
 2. Placeholder Concorde flying over a placeholder island (terrain + sea + one mountain).
 3. Cockpit view and external orbit view, toggled with a key.
-4. **HUD instruments:** artificial horizon, altitude, speed, compass/heading, and a
-   minimap showing the plane, airports, and landmarks (the minimap serves as the
-   "radar").
+4. **Cockpit instrument panel:** the six pack — airspeed, attitude, altimeter,
+   turn coordinator, heading and vertical speed — plus a minimap showing the
+   plane, airports and landmarks (the minimap serves as the "radar"), ASSIST and
+   GEAR lamps, a fuel bar, and large plain-number altitude and speed readouts for
+   a player who cannot yet read a clock face.
 5. One airport plus a couple of landmarks registered on the minimap.
 6. Soft terrain/ground contact (no crashes).
 
@@ -242,7 +279,8 @@ If a genuinely huge, Concorde-scale world is wanted later, add **floating origin
 together with **terrain streaming**. This is deliberately excluded from v1 because
 the ~80–100 km handcrafted island plus tuned arcade speed delivers the "real
 flight" feeling without that engineering. The read-only `IAircraftState` and the
-POI registry are designed so this can be added without reworking the HUD or gameplay.
+POI registry are designed so this can be added without reworking the instrument
+panel or gameplay.
 
 ---
 
@@ -253,7 +291,8 @@ POI registry are designed so this can be added without reworking the HUD or game
   - Airspeed clamps at min and max.
   - `Turn` produces a coordinated bank.
   - Terrain-height clamp prevents descending below the ground.
-- **PlayMode smoke tests:** scene loads, plane flies, view toggles, HUD reads
-  plausible values (mostly "nothing threw").
+- **PlayMode smoke tests:** scene loads, plane flies, view toggles, the panel
+  builds and reads plausible values, and the landing gear toggles (mostly
+  "nothing threw").
 - **Manual playtest:** the real judge is a six-year-old. Speed, turn rate, and
   auto-level strength are tuned iteratively in the Editor.

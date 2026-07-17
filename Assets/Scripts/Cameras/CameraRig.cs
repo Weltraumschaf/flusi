@@ -42,12 +42,16 @@ namespace Flusi
 
         private void OnDestroy() => _controls?.Dispose();
 
-        private void OnToggleView(InputAction.CallbackContext _)
+        /// Public so tests and future cockpit switches can change view without
+        /// synthesising keyboard input. Mirrors AircraftController.ToggleGear.
+        public void ToggleView()
         {
             Current = Current == ViewMode.Cockpit ? ViewMode.Orbit : ViewMode.Cockpit;
             Apply();
             ViewChanged?.Invoke(Current);
         }
+
+        private void OnToggleView(InputAction.CallbackContext _) => ToggleView();
 
         private void Apply()
         {

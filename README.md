@@ -41,3 +41,46 @@ bank and pitch you leave it in.
 brew install --cask unity-hub
 brew install --cask dotnet-sdk
 ```
+
+## Building a Release
+
+Install the **Mac Build Support (IL2CPP)** and **Linux Build Support (IL2CPP)**
+modules for your Unity install via Unity Hub (Installs → gear icon → Add
+Modules) — cross-compiling the Linux build from macOS works fine, no Linux
+machine needed.
+
+### Via the Editor GUI
+
+1. `File > Build Settings`
+2. Confirm `Assets/Scenes/SampleScene.unity` is checked under "Scenes In
+   Build"
+3. Set **Platform** to `macOS`, click `Switch Platform`, then `Build` and
+   choose an output folder (e.g. `Builds/macOS/`)
+4. Switch **Platform** to `Linux`, `Switch Platform`, then `Build` into a
+   separate output folder (e.g. `Builds/Linux/`)
+
+Switching platforms re-imports platform-specific asset variants, so do the two
+builds one at a time.
+
+### Via the command line
+
+`Assets/Editor/BuildScript.cs` exposes `BuildMac()` / `BuildLinux()`, each
+building all enabled scenes from `EditorBuildSettings` to `Builds/macOS/` or
+`Builds/Linux/`:
+
+```shell
+/Applications/Unity/Hub/Editor/6000.5.2f1/Unity.app/Contents/MacOS/Unity \
+  -quit -batchmode -nographics \
+  -projectPath /path/to/flusi \
+  -executeMethod Flusi.EditorTools.BuildScript.BuildMac \
+  -logFile build-mac.log
+
+/Applications/Unity/Hub/Editor/6000.5.2f1/Unity.app/Contents/MacOS/Unity \
+  -quit -batchmode -nographics \
+  -projectPath /path/to/flusi \
+  -executeMethod Flusi.EditorTools.BuildScript.BuildLinux \
+  -logFile build-linux.log
+```
+
+Check the log file if the Unity process exits without producing a build —
+`BuildScript` exits with a non-zero code in batch mode on build failure.

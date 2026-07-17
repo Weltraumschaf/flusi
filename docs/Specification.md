@@ -85,6 +85,14 @@ Input System, a gamepad or other device can be added later without code changes.
 
 (Concrete key choices are finalised during implementation and tuned in playtest.)
 
+**`Pitch` is inverted, deliberately.** The up arrow stands for the stick pushed
+forward and puts the nose *down*; the down arrow pulls back and brings the nose
+*up*. This matches a real aeroplane, and more importantly it matches what the
+player already learned before this was built — which serves §1's first pillar
+better than the arrow pointing the way the nose goes. It is a binding-level
+choice: the `Pitch` axis still means nose-up-positive everywhere in the code, so
+`FlightModel` is unaffected.
+
 ---
 
 ## 4. Views & Cameras

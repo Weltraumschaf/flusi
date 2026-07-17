@@ -173,7 +173,7 @@ namespace Flusi
                 {
                     ""name"": ""Negative"",
                     ""id"": ""173a9032-3a4b-45d6-9f05-36a6ccb50fdd"",
-                    ""path"": ""<Keyboard>/downArrow"",
+                    ""path"": ""<Keyboard>/upArrow"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": """",
@@ -184,7 +184,7 @@ namespace Flusi
                 {
                     ""name"": ""Positive"",
                     ""id"": ""7aac923a-a089-4c4a-b116-ff27d125ae7d"",
-                    ""path"": ""<Keyboard>/upArrow"",
+                    ""path"": ""<Keyboard>/downArrow"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": """",

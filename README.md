@@ -9,8 +9,8 @@ Editor instead of the plane.
 
 | Key         | Action                                          |
 | ----------- | ----------------------------------------------- |
-| Up arrow    | Nose up                                         |
-| Down arrow  | Nose down                                       |
+| Up arrow    | Nose down                                       |
+| Down arrow  | Nose up                                         |
 | Left arrow  | Bank and turn left                              |
 | Right arrow | Bank and turn right                             |
 | `W`         | Faster                                          |
@@ -19,6 +19,11 @@ Editor instead of the plane.
 | `A` / `D`   | Rotate the orbit camera (external view only)    |
 | `L`         | Toggle the auto-level assist (starts on)        |
 | `G`         | Raise / lower the landing gear                  |
+
+**The pitch keys are inverted on purpose, not by mistake.** The up arrow is the
+stick pushed forward, which puts the nose down; the down arrow is the stick
+pulled back, which brings the nose up. That is how a real aeroplane works and
+how the pilot this was built for already flies. Please do not "correct" it.
 
 Turning is coordinated: the left and right arrows roll the plane into the turn
 rather than yawing it flat. With the auto-level assist on, releasing the arrows

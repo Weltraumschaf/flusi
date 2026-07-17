@@ -62,11 +62,32 @@ machine needed.
 Switching platforms re-imports platform-specific asset variants, so do the two
 builds one at a time.
 
-### Via the command line
+### Via Taskfile
 
-`Assets/Editor/BuildScript.cs` exposes `BuildMac()` / `BuildLinux()`, each
-building all enabled scenes from `EditorBuildSettings` to `Builds/macOS/` or
-`Builds/Linux/`:
+Install [go-task](https://taskfile.dev) (`brew install go-task`), then from
+the project root:
+
+```shell
+task build:mac    # macOS only, to Builds/macOS/
+task build:linux  # Linux only, to Builds/Linux/
+task build        # both (also the default: `task` alone runs this)
+task clean        # remove Builds/ and the build-*.log files
+```
+
+The Unity Editor must not already be open on this project — a running Editor
+instance holds the project lock and the build will fail with "another Unity
+instance is running with this project open".
+
+`Taskfile.yml` assumes Unity Hub's default install location and the version in
+`ProjectSettings/ProjectVersion.txt`; override with e.g.
+`task build:mac UNITY_VERSION=6000.3.19f1` if you have a different version
+installed.
+
+### Via the raw command line
+
+`Taskfile.yml` just wraps `Assets/Editor/BuildScript.cs`'s `BuildMac()` /
+`BuildLinux()` methods, each building all enabled scenes from
+`EditorBuildSettings`:
 
 ```shell
 /Applications/Unity/Hub/Editor/6000.5.2f1/Unity.app/Contents/MacOS/Unity \

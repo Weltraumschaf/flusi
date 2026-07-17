@@ -7,7 +7,7 @@ namespace Flusi.Tests
     {
         // The registry is static, so these counts are only meaningful if it starts
         // empty. Clearing after the test is not enough: CockpitPanelSmokeTests
-        // loads SampleScene and leaves it loaded, and its three points of interest
+        // loads MainScene and leaves it loaded, and its three points of interest
         // stay registered into whatever runs next.
         [SetUp] public void ClearBefore() => PointOfInterestRegistry.Clear();
         [TearDown] public void ClearAfter() => PointOfInterestRegistry.Clear();

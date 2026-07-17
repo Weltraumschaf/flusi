@@ -52,7 +52,7 @@ machine needed.
 ### Via the Editor GUI
 
 1. `File > Build Settings`
-2. Confirm `Assets/Scenes/SampleScene.unity` is checked under "Scenes In
+2. Confirm `Assets/Scenes/MainScene.unity` is checked under "Scenes In
    Build"
 3. Set **Platform** to `macOS`, click `Switch Platform`, then `Build` and
    choose an output folder (e.g. `Builds/macOS/`)

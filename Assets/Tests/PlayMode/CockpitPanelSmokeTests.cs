@@ -11,7 +11,7 @@ namespace Flusi.Tests
         [UnitySetUp]
         public IEnumerator LoadScene()
         {
-            SceneManager.LoadScene("SampleScene", LoadSceneMode.Single);
+            SceneManager.LoadScene("MainScene", LoadSceneMode.Single);
             yield return null;
             yield return null; // let Awake/OnEnable settle
         }

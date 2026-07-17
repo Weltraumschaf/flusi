@@ -76,7 +76,7 @@ Each of these fails silently with an empty console — the worst kind to redisco
 
 ## Architecture Notes
 
-- Game code is in `Assets/Scripts/`: `Flight/` (`FlightModel`, `AircraftController`, `IAircraftState`, `AircraftStateRef`), `Cockpit/` (the instrument panel), `Cameras/`, `World/` (POI registry, minimap). Tests in `Assets/Tests/{EditMode,PlayMode}/`, the test-runner harness in `Assets/Editor/`. Scenes in `Assets/Scenes/` (`SampleScene.unity` is the entry scene), render/quality config in `Assets/Settings/`.
+- Game code is in `Assets/Scripts/`: `Flight/` (`FlightModel`, `AircraftController`, `IAircraftState`, `AircraftStateRef`), `Cockpit/` (the instrument panel), `Cameras/`, `World/` (POI registry, minimap). Tests in `Assets/Tests/{EditMode,PlayMode}/`, the test-runner harness in `Assets/Editor/`. Scenes in `Assets/Scenes/` (`MainScene.unity` is the entry scene), render/quality config in `Assets/Settings/`.
 - Namespace is flat `Flusi` (`Flusi.Tests` for tests); folders are organisational only.
 - The pattern throughout: pure static maths (`GaugeScale`, `AltimeterScale`, `FlightDerivations`, `HudFormat`, `MinimapProjection`) behind thin MonoBehaviours, so the logic is EditMode-testable. Follow it.
 - Instruments and the minimap read the aircraft ONLY through the read-only `IAircraftState` seam, never flight internals. Guard per-frame reads with `AircraftStateRef.IsAlive` — a destroyed aircraft does not compare equal to null through an interface-typed field.

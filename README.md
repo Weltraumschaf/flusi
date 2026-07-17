@@ -44,10 +44,14 @@ brew install --cask dotnet-sdk
 
 ## Building a Release
 
-Install the **Mac Build Support (IL2CPP)** and **Linux Build Support (IL2CPP)**
-modules for your Unity install via Unity Hub (Installs → gear icon → Add
-Modules) — cross-compiling the Linux build from macOS works fine, no Linux
-machine needed.
+Install the **Mac Build Support (IL2CPP)**, **Linux Build Support (IL2CPP)**,
+and **Linux Dedicated Server Build Support** modules for your Unity install via
+Unity Hub (Installs → gear icon → Add Modules) — cross-compiling the Linux
+build from macOS works fine, no Linux machine needed. The Server module isn't
+used directly, but without it the Editor fails the desktop Linux build with
+"No Linux sysroot found" / "Unable to find an Linux Sysroot" even though the
+Linux sysroot/toolchain packages are installed (a known Unity bug tying their
+discovery to the Server component).
 
 ### Via the Editor GUI
 

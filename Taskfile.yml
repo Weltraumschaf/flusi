@@ -24,11 +24,20 @@ tasks:
   build:linux:
     desc: Build the Linux standalone release
     cmds:
-      - >-
-        {{.UNITY_PATH}} -quit -batchmode -nographics
-        -projectPath {{.PROJECT_DIR}}
-        -executeMethod Flusi.EditorTools.BuildScript.BuildLinux
-        -logFile build-linux.log
+      # Switching the active build target from macOS to Linux races Unity's
+      # own IL2CPP sysroot/toolchain package discovery: it intermittently
+      # reports "No Linux sysroot found" / "Unable to find an Linux Sysroot"
+      # even though the packages are installed. Retrying reliably recovers,
+      # since the target no longer needs to switch on the next attempt.
+      - |
+        for attempt in 1 2 3 4 5; do
+          {{.UNITY_PATH}} -quit -batchmode -nographics \
+            -projectPath {{.PROJECT_DIR}} \
+            -executeMethod Flusi.EditorTools.BuildScript.BuildLinux \
+            -logFile build-linux.log && exit 0
+          echo "build:linux attempt $attempt failed, retrying..." >&2
+        done
+        exit 1
 
   build:
     desc: Build macOS and Linux releases

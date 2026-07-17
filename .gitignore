@@ -13,3 +13,4 @@ Recordings/
 *.csproj
 *.sln
 *.slnx
+GeneratedAssets/

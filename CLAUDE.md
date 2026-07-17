@@ -22,7 +22,7 @@ There is no `refresh_unity`, `read_console`, `manage_scene`, `manage_components`
 - Do NOT call any refresh tool after editing a script — Unity auto-detects the change. Wait ~30 s; the bridge drops during domain reload. `"Unity not detected"` means a reload is in progress: retry with exponential backoff.
 - Before investigating any bug, call `Unity_GetConsoleLogs` (`logTypes: "error"`) first. The logs almost always contain the cause.
 - Prefer querying scene state via `Unity_RunCommand` over reading source files to infer it.
-- Scene edits need `EditorSceneManager.MarkSceneDirty` + `SaveScene` to reach disk.
+- Scene edits need `EditorSceneManager.MarkSceneDirty` + `SaveScene` to reach disk — both throw `InvalidOperationException` in Play mode. Check `EditorApplication.isPlaying` first; it can be left `true` from a prior session. Setting it to `false` is deferred a frame — poll (e.g. `sleep` + recheck) before the next `Unity_RunCommand`, don't assume it's already Edit mode in the same call.
 - Private `[SerializeField]` wiring needs `SerializedObject` / `FindProperty` / `ApplyModifiedProperties`. Use the exact C# field name, not the Inspector display name.
 - Do scene work with throwaway C# inside `Unity_RunCommand`; do not add scripts to the project to do it.
 - Camera capture is unreliable here (64-bit entity id vs the int32 MCP parameter), and screen-space-overlay UI does not appear in scene captures. Verify functionally; ask the owner for visual review.
@@ -52,6 +52,7 @@ Each of these fails silently with an empty console — the worst kind to redisco
 - `Image.Type.Filled` needs BOTH the type AND a non-null sprite: `OnPopulateMesh` returns early on a null sprite and ignores `type` entirely. Either mistake yields a permanently-full bar and nothing in the console.
 - The HUD canvas is `ScaleWithScreenSize` 1920x1080 `match=WIDTH`, so reference HEIGHT varies with aspect (1080@16:9, 1440@4:3). Use fractional anchors for anything that must track the panel.
 - Gauge faces are built at `Awake`: bare in the edit-mode scene view, populated only in play mode and builds. Expected, not a bug.
+- To inspect HUD layout, dump the RectTransform tree (`anchorMin`/`anchorMax`/`anchoredPosition`/`sizeDelta`) via `Unity_RunCommand` — camera capture can't see overlay UI anyway. Containers built with fractional-anchored children (e.g. the six-pack gauges) reflow automatically when the container itself is resized — no need to touch each child.
 
 ## Building
 

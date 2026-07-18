@@ -33,7 +33,14 @@ namespace Flusi
         private const string TickName = "Tick";
         private const string LabelName = "Label";
 
-        private void Awake() => Build();
+        // Unity calls Awake regardless of the component's enabled state, so a
+        // disabled builder (the gauges that swapped in generated face art)
+        // must skip Build() explicitly or it silently rebuilds its ticks and
+        // labels on top of that art every time the scene loads.
+        private void Awake()
+        {
+            if (enabled) Build();
+        }
 
         private void Build()
         {

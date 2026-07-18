@@ -19,6 +19,7 @@ The installed Unity MCP server exposes ONLY: `Unity_RunCommand`, `Unity_GetConso
 
 There is no `refresh_unity`, `read_console`, `manage_scene`, `manage_components`, `find_gameobjects`, `manage_prefabs`, `batch_execute`, `validate_script` or `editor_selection` — do not plan around them. Everything else is done by writing C# into `Unity_RunCommand`.
 
+- The running Unity Editor has exactly one project open at a time — creating a git worktree gives you a *different directory* the Editor isn't open in, so `Unity_RunCommand` keeps operating on the original directory regardless of `cwd`. For work needing live Editor access, skip worktree isolation (branch/work directly in this directory) unless the user physically relaunches the Editor from the worktree path.
 - Do NOT call any refresh tool after editing a script — Unity auto-detects the change. Wait ~30 s; the bridge drops during domain reload. `"Unity not detected"` means a reload is in progress: retry with exponential backoff.
 - `"Named pipe socket file not found"` (not `"Unity not detected"`) means the Editor process itself isn't running — Unity Hub alone doesn't count. Check with `ps aux | grep "Unity.app/Contents/MacOS/Unity "`; if absent, the user must launch the Editor before any MCP tool call will work, no amount of retrying helps.
 - A freshly-opened Editor may have a scene other than `MainScene.unity` loaded (e.g. a blank default scene). Check `SceneManager.GetActiveScene().path` before querying/editing scene state; if wrong, `EditorSceneManager.OpenScene("Assets/Scenes/MainScene.unity", OpenSceneMode.Single)`.
@@ -31,6 +32,7 @@ There is no `refresh_unity`, `read_console`, `manage_scene`, `manage_components`
 - Camera capture is unreliable here (64-bit entity id vs the int32 MCP parameter), and screen-space-overlay UI does not appear in scene captures. Verify functionally; ask the owner for visual review.
 - Overlay UI CAN be captured despite the above: `EditorApplication.ExecuteMenuItem("Window/General/Game")` to force the Game view open, then `ScreenCapture.CaptureScreenshot(path)` in Play mode — poll the file a couple seconds later. Ignore the MCP camera-capture tools for this; use plain `ScreenCapture`.
 - Both of the above silently fail to produce a file if the Editor's Game view window isn't actually focused/visible on screen (e.g. remote/unattended session) — Unity simply stops advancing frames (`Time.frameCount` stays fixed) so the screenshot never fires. `screencapture` (macOS CLI) fails loudly instead (`could not create image from display`) if the calling process lacks Screen Recording permission, which it typically does in an agent session. When both are blocked, ask the owner to look/screenshot instead of trusting a silent "success".
+- The MCP scene-view capture tools (`Capture2DScene`, `CaptureMultiAngleSceneView`) share this staleness failure mode — they can return a byte-identical frame across separate calls with no error. Don't trust any capture tool's output as fresh until content plausibly differs between calls.
 
 ## Unity_RunCommand sandbox
 
@@ -41,12 +43,16 @@ There is no `refresh_unity`, `read_console`, `manage_scene`, `manage_components`
 - `result.Log` ignores format specifiers — `{0:F2}` prints literally. Pre-format with `StringBuilder.AppendFormat`.
 - Never call `FlightControls.Dispose()` in an edit-mode probe (Destroy-in-edit-mode error).
 - An `EditorApplication.update`-driven coroutine (to hold input or wait several frames) does not survive the sandbox teardown after `Execute()` returns — it silently never fires again. Do it in one synchronous pass. `ScreenCapture.CaptureScreenshot` is fine as a single fire-and-forget call since Unity's own engine finishes the write, not our delegate.
+- `Object.GetInstanceID()` is obsolete in this Editor version (`CS0619`: "use GetEntityId instead") — don't reach for it as a capture-focus workaround; it won't compile in the sandbox, consistent with the existing 64-bit-entity-id/int32-param capture limitation.
 
 ## Asset generation
 
 - `Unity_AssetGeneration_GenerateAsset` does not overwrite an existing file at `savePath` — it silently appends `" 1"` instead. To regenerate in place: save to a new/temp path, copy the bytes over the target path, then `AssetDatabase.MoveAssetToTrash` the temp asset (plain `File.Delete` on a tracked asset triggers a blocked interactive dialog).
 - The copy-dance above is only for fresh generation. `EditImageWithPrompt` with `targetAssetPath` set edits that asset IN PLACE — no temp path needed.
 - `"There are interrupted asset generations..."` means a prior session crashed mid-generation; pass `forceGeneration: true` to bypass.
+- `AssetDatabase.CreateAsset` fails ("Parent directory must exist") if the target folder doesn't exist yet — `AssetDatabase.CreateFolder` first for any new `Assets/<Category>/` path.
+- `hand-painted-textures-2-0` is a good model choice for this project's stylized/tileable texture needs (terrain layers, water) — matches the "simple/stylized, not photorealistic" look used throughout.
+- The asset-generation consent gate needs the real project owner's confirmation — a subagent dispatched via the `Agent` tool can't get that (its conversation is isolated from the owner). In subagent-driven-development, have the controller call `Unity_AssetGeneration_GenerateAsset` directly rather than delegating it to an implementer subagent.
 - Generated PNGs have repeatedly come back with NO real alpha channel despite the prompt explicitly requesting a transparent background — the model ignores this often. An opaque light/white/gray background is visually indistinguishable from genuine checkerboard transparency in a casual preview; this went undetected through five separate reviews in one session. Always verify by sampling actual pixel alpha in C# (`Texture2D.LoadImage` + `GetPixel().a`), never by eyeballing the Read-tool preview. Sanity-check any fix by comparing the opaque-pixel fraction against the expected geometry (e.g. a filled circle of radius `r` in a canvas of half-width `R` should be ≈ `π(r/R)²/4` opaque) — a plausible-looking image can still be wrong.
 
 ## Tests
@@ -58,6 +64,14 @@ There is no `refresh_unity`, `read_console`, `manage_scene`, `manage_components`
 - Live-assembly proof (reflection is blocked): bind the symbol to a delegate — `System.Action t = rig.ToggleView;` compiles only if it really exists. Pair with `EditorApplication.isCompiling == false`.
 - Drive the aircraft from a probe with the runtime Input System, no test framework needed: `InputSystem.QueueStateEvent(kb, new KeyboardState(Key.UpArrow)); InputSystem.Update();`. The synthetic state may not survive to the next frame — queue, pump and read in the same script.
 - PlayMode tests that `LoadScene` leave the scene loaded, and `PointOfInterestRegistry` is static: tests depending on an empty registry must clear it in `[SetUp]`, not only `[TearDown]`.
+- Never call `RunEditMode()` and `RunPlayMode()` in the same `Unity_RunCommand` script — firing them back-to-back corrupts the test runner's internal state (`InvalidOperationException: This cannot be used during play mode`, `Too many instant steps in test execution mode`) and leaves the status file stuck `RUNNING` forever, which looks like the documented stall but isn't fixed by the `isPlaying` check. Call them in **separate** `Unity_RunCommand` invocations, polling each to `STATUS` before starting the next.
+
+## Terrain sculpting
+
+- `TerrainData.SetHeights`/`GetHeights`/`SetAlphamaps`/`GetAlphamaps` all index arrays `[z, x]` (row-major, z first), not `[x, z]`.
+- `GetInterpolatedHeight`/`GetSteepness` take NORMALIZED `[0,1]` terrain-fraction coordinates; `SampleHeight(worldPos)` and `GetHeight(int, int)` don't. Don't mix conventions across scripts touching the same terrain.
+- There is no `GetInterpolatedAlphamapValue` API (`CS1061`) — read a texel's layer weights via `GetAlphamaps(x, y, 1, 1)` at heightmap-index coordinates, not normalized ones.
+- Slope is ~0 exactly AT a smooth radial-falloff peak (it's a local maximum, zero gradient) — the steep terrain is on the flanks a few hundred meters out, not the summit. When tuning slope-based rock/texture blending, sample a radius/angle sweep around a peak, not just the peak's own coordinate, or you'll wrongly conclude the blend rule found no steep ground.
 
 ## UI gotchas
 

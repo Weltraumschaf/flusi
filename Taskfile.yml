@@ -47,3 +47,26 @@ tasks:
     cmds:
       - rm -rf Builds
       - rm -f Logs/build-mac.log Logs/build-linux.log
+
+  dist:
+    desc: Make distribution tarballs
+    cmds:
+      - mkdir -p Dist
+      - tasK: dist:mac
+      - tasK: dist:linux
+    deps:
+      - task: build
+        
+  dist:mac:
+    desc: Make macOS distribution tarballs
+    cmds:
+      - rm -rf Build/macOS/flusi_BackUpThisFolder_ButDontShipItWithYourGame
+      - rm -rf Build/macOS/flusi_BurstDebugInformation_DoNotShip
+      # TODO: Make a zip file with Build/macOS/Flusi.app in Dist/Flusi-macOS.zip
+    
+  dist:linux:
+    desc: Make Linux distribution tarballs
+    cmds:
+      - rm -rf Build/Linux/flusi_BackUpThisFolder_ButDontShipItWithYourGame
+      - rm -rf Build/Linux/flusi_BurstDebugInformation_DoNotShip
+      # TODO: Make a zip file with Build/Linux/* in Dist/Flusi-linux.zip

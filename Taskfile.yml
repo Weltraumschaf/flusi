@@ -52,8 +52,8 @@ tasks:
     desc: Make distribution tarballs
     cmds:
       - mkdir -p Dist
-      - tasK: dist:mac
-      - tasK: dist:linux
+      - task: dist:mac
+      - task: dist:linux
     deps:
       - task: build
         

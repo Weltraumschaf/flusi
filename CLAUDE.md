@@ -20,6 +20,9 @@ The installed Unity MCP server exposes ONLY: `Unity_RunCommand`, `Unity_GetConso
 There is no `refresh_unity`, `read_console`, `manage_scene`, `manage_components`, `find_gameobjects`, `manage_prefabs`, `batch_execute`, `validate_script` or `editor_selection` — do not plan around them. Everything else is done by writing C# into `Unity_RunCommand`.
 
 - Do NOT call any refresh tool after editing a script — Unity auto-detects the change. Wait ~30 s; the bridge drops during domain reload. `"Unity not detected"` means a reload is in progress: retry with exponential backoff.
+- `"Named pipe socket file not found"` (not `"Unity not detected"`) means the Editor process itself isn't running — Unity Hub alone doesn't count. Check with `ps aux | grep "Unity.app/Contents/MacOS/Unity "`; if absent, the user must launch the Editor before any MCP tool call will work, no amount of retrying helps.
+- A freshly-opened Editor may have a scene other than `MainScene.unity` loaded (e.g. a blank default scene). Check `SceneManager.GetActiveScene().path` before querying/editing scene state; if wrong, `EditorSceneManager.OpenScene("Assets/Scenes/MainScene.unity", OpenSceneMode.Single)`.
+- The Editor's main thread can block indefinitely on a native modal (e.g. an unsaved-scene save dialog) triggered by a prior `Unity_RunCommand`. Every subsequent MCP call — even a trivial one — then queues forever with no error. There is no remote way to detect or dismiss this; ask the user to check the Editor window physically.
 - Before investigating any bug, call `Unity_GetConsoleLogs` (`logTypes: "error"`) first. The logs almost always contain the cause.
 - Prefer querying scene state via `Unity_RunCommand` over reading source files to infer it.
 - Scene edits need `EditorSceneManager.MarkSceneDirty` + `SaveScene` to reach disk — both throw `InvalidOperationException` in Play mode. Check `EditorApplication.isPlaying` first; it can be left `true` from a prior session. Setting it to `false` is deferred a frame — poll (e.g. `sleep` + recheck) before the next `Unity_RunCommand`, don't assume it's already Edit mode in the same call.
@@ -27,6 +30,7 @@ There is no `refresh_unity`, `read_console`, `manage_scene`, `manage_components`
 - Do scene work with throwaway C# inside `Unity_RunCommand`; do not add scripts to the project to do it.
 - Camera capture is unreliable here (64-bit entity id vs the int32 MCP parameter), and screen-space-overlay UI does not appear in scene captures. Verify functionally; ask the owner for visual review.
 - Overlay UI CAN be captured despite the above: `EditorApplication.ExecuteMenuItem("Window/General/Game")` to force the Game view open, then `ScreenCapture.CaptureScreenshot(path)` in Play mode — poll the file a couple seconds later. Ignore the MCP camera-capture tools for this; use plain `ScreenCapture`.
+- Both of the above silently fail to produce a file if the Editor's Game view window isn't actually focused/visible on screen (e.g. remote/unattended session) — Unity simply stops advancing frames (`Time.frameCount` stays fixed) so the screenshot never fires. `screencapture` (macOS CLI) fails loudly instead (`could not create image from display`) if the calling process lacks Screen Recording permission, which it typically does in an agent session. When both are blocked, ask the owner to look/screenshot instead of trusting a silent "success".
 
 ## Unity_RunCommand sandbox
 
@@ -47,7 +51,7 @@ There is no `refresh_unity`, `read_console`, `manage_scene`, `manage_components`
 
 ## Tests
 
-- Run via `Flusi.EditorTools.FlusiTestRunner.RunEditMode()` / `RunPlayMode()` inside `Unity_RunCommand`; poll `Temp/flusi-tests.txt` for `STATUS Passed`, detail in `Temp/flusi-tests-failures.txt`. Baseline: **EditMode 41, PlayMode 6**.
+- Run via `Flusi.EditorTools.FlusiTestRunner.RunEditMode()` / `RunPlayMode()` inside `Unity_RunCommand`; poll `Temp/flusi-tests.txt` for `STATUS Passed`, detail in `Temp/flusi-tests-failures.txt`. Baseline: **EditMode 46, PlayMode 6** (grep `Assets/Tests/EditMode/*.cs` for `[Test]`/`[UnityTest]` to confirm current count if in doubt — it has drifted before).
 - **A green is worthless until proven live.** When compilation fails the test runner does NOT fail — it silently runs the last good assemblies and reports a STALE pass with a plausible count. Always check console errors AND prove the symbol under test is in the loaded assembly. An unexpected count, even a passing one, means read the console.
 - The run can also silently STALL — `Temp/flusi-tests.txt` stuck at `RUNNING X` indefinitely — if `EditorApplication.isPlaying` is unexpectedly `true`. Check `isPlaying`, exit Play mode, wait a few seconds, retry; don't keep polling a stuck run.
 - Poll with one foreground blocking Bash call in the same turn that kicks off the run: `until grep -q STATUS Temp/flusi-tests.txt; do sleep 2; done; cat Temp/flusi-tests.txt`. A subagent that instead uses `Monitor` or a background wait for the result has its turn end before the result lands.
@@ -68,10 +72,12 @@ Each of these fails silently with an empty console — the worst kind to redisco
 - A compound instrument (e.g. HeadingIndicator's static bezel + rotating card) can have the same baked-checkerboard-ring defect independently on each layered sprite — fixing the base layer can still leave it visible via a sprite stacked on top. Check every layer.
 - `GaugeFaceBuilder`'s tick/label radius fields are absolute pixels, not relative to the parent gauge's `sizeDelta`. Resizing a gauge's RectTransform does not rescale its procedural ticks — they'll misalign against the baked face art unless the builder's fields are retuned too.
 - Unity UI renders in sibling order, depth-first: everything under an earlier sibling renders behind everything under a later sibling, regardless of nesting depth. In a dense panel a later gauge's opaque face can silently paint over an earlier gauge's caption wherever the bounding boxes overlap, even with correct anchors.
+- A stencil-based UGUI `Mask` can silently no-op (clips nothing, full unclipped content shows) specifically in a **standalone macOS/Metal build** while working fine in the Editor and on Linux — the Editor's Game view always has a stencil-capable render target, a Screen-Space-Overlay canvas's raw window backbuffer on Metal apparently doesn't. Fix: put the canvas in Screen Space - Camera mode instead of Overlay (routes through the camera's render target, sidesteps the gap). If multiple cameras are toggled on/off (e.g. cockpit/orbit view, only one `Camera.enabled` at a time), the canvas's `worldCamera` must be repointed on every toggle or the whole canvas goes blank whenever the assigned camera is the disabled one.
 
 ## Building
 
 - `task build` / `task build:linux` (see `Taskfile.yml`, `README.md`): the Linux build is flaky by a known Unity 6000.5.2f1 bug — switching the active build target from macOS→Linux races the Editor's IL2CPP sysroot/toolchain discovery. `task build:linux` retries automatically (up to 5x); one retry before green is expected, not a regression.
+- Batchmode `task build:*` refuses to run ("another Unity instance is running with this project open") whenever the Editor is already open — Unity won't let two processes share one project. With the Editor open, build in-place instead: call `Flusi.EditorTools.BuildScript.BuildMac()` (or `BuildLinux`) via `Unity_RunCommand`. That call reports MCP-level `"failed"` on ordinary shader compile warnings (there are always some, from URP/Sentis packages) even though the build succeeded — don't trust the tool's pass/fail, check `Builds/<platform>/` for the produced app/binary instead.
 
 ## Git
 

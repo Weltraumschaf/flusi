@@ -7,18 +7,18 @@ This is a simple flight simulator for my six years old son.
 Keyboard only. Click inside the Game view first, otherwise the keys go to the
 Editor instead of the plane.
 
-| Key         | Action                                          |
-| ----------- | ----------------------------------------------- |
-| Up arrow    | Nose down                                       |
-| Down arrow  | Nose up                                         |
-| Left arrow  | Bank and turn left                              |
-| Right arrow | Bank and turn right                             |
-| `W`         | Faster                                          |
-| `S`         | Slower                                          |
-| `C`         | Switch between cockpit and external orbit view  |
-| `A` / `D`   | Rotate the orbit camera (external view only)    |
-| `L`         | Toggle the auto-level assist (starts on)        |
-| `G`         | Raise / lower the landing gear                  |
+| Key       | Action                                            |
+|-----------|---------------------------------------------------|
+| ⬆️        | Nose down ↗                                       |
+| ⬇️        | Nose up ↘                                         |
+| ⬅️        | Bank and turn left ←                              |
+| ➡️        | Bank and turn right →                             |
+| `W`       | Faster 🐇                                         |
+| `S`       | Slower 🐢                                         |
+| `C`       | Switch between cockpit and external orbit view 🎥 |
+| `A` / `D` | Rotate the orbit camera (external view only)      |
+| `L`       | Toggle the auto-level assist (starts on)          |
+| `G`       | Raise / lower the landing gear                    |
 
 **The pitch keys are inverted on purpose, not by mistake.** The up arrow is the
 stick pushed forward, which puts the nose down; the down arrow is the stick

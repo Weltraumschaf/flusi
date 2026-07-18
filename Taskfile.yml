@@ -46,7 +46,8 @@ tasks:
     desc: Remove build output and logs
     cmds:
       - rm -rf Builds
-      - rm -f Logs/build-mac.log Logs/build-linux.log
+      - rm -rf Dist
+      - rm -rf Logs
 
   dist:
     desc: Make distribution tarballs
@@ -60,13 +61,17 @@ tasks:
   dist:mac:
     desc: Make macOS distribution tarballs
     cmds:
-      - rm -rf Build/macOS/flusi_BackUpThisFolder_ButDontShipItWithYourGame
-      - rm -rf Build/macOS/flusi_BurstDebugInformation_DoNotShip
-      # TODO: Make a zip file with Build/macOS/Flusi.app in Dist/Flusi-macOS.zip
-    
+      - mkdir -p Dist
+      - rm -rf Builds/macOS/flusi_BackUpThisFolder_ButDontShipItWithYourGame
+      - rm -rf Builds/macOS/flusi_BurstDebugInformation_DoNotShip
+      - rm -f Dist/Flusi-macOS.zip
+      - cd Builds/macOS && zip -r -y -q ../../Dist/Flusi-macOS.zip flusi.app -x '*.DS_Store'
+
   dist:linux:
     desc: Make Linux distribution tarballs
     cmds:
-      - rm -rf Build/Linux/flusi_BackUpThisFolder_ButDontShipItWithYourGame
-      - rm -rf Build/Linux/flusi_BurstDebugInformation_DoNotShip
-      # TODO: Make a zip file with Build/Linux/* in Dist/Flusi-linux.zip
+      - mkdir -p Dist
+      - rm -rf Builds/Linux/flusi_BackUpThisFolder_ButDontShipItWithYourGame
+      - rm -rf Builds/Linux/flusi_BurstDebugInformation_DoNotShip
+      - rm -f Dist/Flusi-linux.zip
+      - cd Builds/Linux && zip -r -y -q ../../Dist/Flusi-linux.zip . -x '*.DS_Store'

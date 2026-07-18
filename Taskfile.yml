@@ -3,23 +3,26 @@ version: '3'
 vars:
   UNITY_VERSION: 6000.5.2f1
   UNITY_PATH: /Applications/Unity/Hub/Editor/{{.UNITY_VERSION}}/Unity.app/Contents/MacOS/Unity
-  PROJECT_DIR:
-    sh: pwd
-
         
 tasks:
   default:
     cmds:
       - task: build
 
+  build:
+    desc: Build macOS and Linux releases
+    cmds:
+      - task: build:mac
+      - task: build:linux
+
   build:mac:
     desc: Build the macOS standalone release
     cmds:
       - >-
         {{.UNITY_PATH}} -quit -batchmode -nographics
-        -projectPath {{.PROJECT_DIR}}
+        -projectPath {{.ROOT_DIR }}
         -executeMethod Flusi.EditorTools.BuildScript.BuildMac
-        -logFile build-mac.log
+        -logFile Logs/build-mac.log
 
   build:linux:
     desc: Build the Linux standalone release
@@ -32,21 +35,15 @@ tasks:
       - |
         for attempt in 1 2 3 4 5; do
           {{.UNITY_PATH}} -quit -batchmode -nographics \
-            -projectPath {{.PROJECT_DIR}} \
+            -projectPath {{.ROOT_DIR }} \
             -executeMethod Flusi.EditorTools.BuildScript.BuildLinux \
-            -logFile build-linux.log && exit 0
+            -logFile Logs/build-linux.log && exit 0
           echo "build:linux attempt $attempt failed, retrying..." >&2
         done
         exit 1
-
-  build:
-    desc: Build macOS and Linux releases
-    cmds:
-      - task: build:mac
-      - task: build:linux
 
   clean:
     desc: Remove build output and logs
     cmds:
       - rm -rf Builds
-      - rm -f build-mac.log build-linux.log
+      - rm -f Logs/build-mac.log Logs/build-linux.log

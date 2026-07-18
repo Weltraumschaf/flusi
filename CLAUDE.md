@@ -26,6 +26,7 @@ There is no `refresh_unity`, `read_console`, `manage_scene`, `manage_components`
 - Private `[SerializeField]` wiring needs `SerializedObject` / `FindProperty` / `ApplyModifiedProperties`. Use the exact C# field name, not the Inspector display name.
 - Do scene work with throwaway C# inside `Unity_RunCommand`; do not add scripts to the project to do it.
 - Camera capture is unreliable here (64-bit entity id vs the int32 MCP parameter), and screen-space-overlay UI does not appear in scene captures. Verify functionally; ask the owner for visual review.
+- Overlay UI CAN be captured despite the above: `EditorApplication.ExecuteMenuItem("Window/General/Game")` to force the Game view open, then `ScreenCapture.CaptureScreenshot(path)` in Play mode — poll the file a couple seconds later. Ignore the MCP camera-capture tools for this; use plain `ScreenCapture`.
 
 ## Unity_RunCommand sandbox
 
@@ -35,10 +36,13 @@ There is no `refresh_unity`, `read_console`, `manage_scene`, `manage_components`
 - Fully qualify `UnityEngine.UI.Image`; bare `Image` raises CS0118.
 - `result.Log` ignores format specifiers — `{0:F2}` prints literally. Pre-format with `StringBuilder.AppendFormat`.
 - Never call `FlightControls.Dispose()` in an edit-mode probe (Destroy-in-edit-mode error).
+- An `EditorApplication.update`-driven coroutine (to hold input or wait several frames) does not survive the sandbox teardown after `Execute()` returns — it silently never fires again. Do it in one synchronous pass. `ScreenCapture.CaptureScreenshot` is fine as a single fire-and-forget call since Unity's own engine finishes the write, not our delegate.
 
 ## Asset generation
 
 - `Unity_AssetGeneration_GenerateAsset` does not overwrite an existing file at `savePath` — it silently appends `" 1"` instead. To regenerate in place: save to a new/temp path, copy the bytes over the target path, then `AssetDatabase.MoveAssetToTrash` the temp asset (plain `File.Delete` on a tracked asset triggers a blocked interactive dialog).
+- The copy-dance above is only for fresh generation. `EditImageWithPrompt` with `targetAssetPath` set edits that asset IN PLACE — no temp path needed.
+- `"There are interrupted asset generations..."` means a prior session crashed mid-generation; pass `forceGeneration: true` to bypass.
 - Generated PNGs have repeatedly come back with NO real alpha channel despite the prompt explicitly requesting a transparent background — the model ignores this often. An opaque light/white/gray background is visually indistinguishable from genuine checkerboard transparency in a casual preview; this went undetected through five separate reviews in one session. Always verify by sampling actual pixel alpha in C# (`Texture2D.LoadImage` + `GetPixel().a`), never by eyeballing the Read-tool preview. Sanity-check any fix by comparing the opaque-pixel fraction against the expected geometry (e.g. a filled circle of radius `r` in a canvas of half-width `R` should be ≈ `π(r/R)²/4` opaque) — a plausible-looking image can still be wrong.
 
 ## Tests
@@ -60,7 +64,10 @@ Each of these fails silently with an empty console — the worst kind to redisco
 - `MonoBehaviour.Awake()` runs regardless of the component's own `enabled` flag — setting `enabled = false` to retire a component does NOT stop its `Awake` logic from running. Guard the body explicitly: `void Awake() { if (enabled) Build(); }`.
 - The HUD canvas is `ScaleWithScreenSize` 1920x1080 `match=WIDTH`, so reference HEIGHT varies with aspect (1080@16:9, 1440@4:3). Use fractional anchors for anything that must track the panel.
 - Gauge faces are built at `Awake`: bare in the edit-mode scene view, populated only in play mode and builds. Expected, not a bug.
-- To inspect HUD layout, dump the RectTransform tree (`anchorMin`/`anchorMax`/`anchoredPosition`/`sizeDelta`) via `Unity_RunCommand` — camera capture can't see overlay UI anyway. Containers built with fractional-anchored children (e.g. the six-pack gauges) reflow automatically when the container itself is resized — no need to touch each child.
+- To inspect HUD layout, dump the RectTransform tree (`anchorMin`/`anchorMax`/`anchoredPosition`/`sizeDelta`) via `Unity_RunCommand`. Containers built with fractional-anchored children (e.g. the six-pack gauges) reflow automatically when the container itself is resized — no need to touch each child.
+- A compound instrument (e.g. HeadingIndicator's static bezel + rotating card) can have the same baked-checkerboard-ring defect independently on each layered sprite — fixing the base layer can still leave it visible via a sprite stacked on top. Check every layer.
+- `GaugeFaceBuilder`'s tick/label radius fields are absolute pixels, not relative to the parent gauge's `sizeDelta`. Resizing a gauge's RectTransform does not rescale its procedural ticks — they'll misalign against the baked face art unless the builder's fields are retuned too.
+- Unity UI renders in sibling order, depth-first: everything under an earlier sibling renders behind everything under a later sibling, regardless of nesting depth. In a dense panel a later gauge's opaque face can silently paint over an earlier gauge's caption wherever the bounding boxes overlap, even with correct anchors.
 
 ## Building
 
@@ -72,6 +79,7 @@ Each of these fails silently with an empty console — the worst kind to redisco
 - A new asset's `.meta` must land in the SAME commit as the asset, or a checkout of that commit has an asset with no GUID.
 - Interactive rebase is blocked in this environment: use `git commit --fixup=<sha>` + `GIT_SEQUENCE_EDITOR=true git rebase --autosquash <base>`.
 - `git commit --amend --no-edit` is wrong when the amend changes what the commit does — the stale message then contradicts the code.
+- `git commit` hanging ~2 min with no output usually means `commit.gpgsign=true` is waiting on a pinentry prompt the tool can't see. Check `git config --get commit.gpgsign`; don't add `--no-gpg-sign` — ask the user to unlock via `! git commit` or explicitly authorize a bypass.
 
 ## Efficiency
 

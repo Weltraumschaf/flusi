@@ -68,7 +68,8 @@ namespace Flusi
             var input = new FlightInput
             {
                 Pitch = _controls.Flight.Pitch.ReadValue<float>(),
-                Turn = _controls.Flight.Turn.ReadValue<float>(),
+                Turn = TurnInputCorrection.Apply(
+                    _controls.Flight.Turn.ReadValue<float>(), Application.platform),
                 Throttle = _controls.Flight.Throttle.ReadValue<float>(),
                 AutoLevel = autoLevelOn
             };

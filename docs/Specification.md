@@ -208,8 +208,13 @@ Every gauge reads `IAircraftState` and nothing else. `AircraftStateRef.IsAlive`
 guards those reads, because a destroyed aircraft does not compare equal to null
 through an interface-typed field.
 
-The cockpit camera's rect is restricted to the top two thirds so the world is a
-real window above the panel rather than being drawn behind it.
+The cockpit camera renders full-screen; the opaque panel simply draws over the
+bottom third, hiding the world behind it. (An earlier letterboxed-rect version
+broke once the HUD canvas needed Screen Space - Camera mode — a Screen Space -
+Camera canvas is confined to its camera's viewport, so the letterboxed camera
+squeezed the whole canvas into its top two thirds. Since the panel is already
+opaque, full-screen costs nothing but a little hidden overdraw and sidesteps
+that coupling.)
 
 ### 7.4 World services
 

@@ -9,6 +9,7 @@ namespace Flusi
         [SerializeField] private Camera cockpitCamera;
         [SerializeField] private Camera orbitCamera;
         [SerializeField] private Transform aircraft;
+        [SerializeField] private Canvas hudCanvas; // Screen Space - Camera; must follow whichever camera is enabled
 
         public ViewMode Current { get; private set; } = ViewMode.Cockpit;
         public event System.Action<ViewMode> ViewChanged;
@@ -59,6 +60,8 @@ namespace Flusi
             bool cockpit = Current == ViewMode.Cockpit;
             cockpitCamera.enabled = cockpit;
             orbitCamera.enabled = !cockpit;
+            if (hudCanvas != null)
+                hudCanvas.worldCamera = cockpit ? cockpitCamera : orbitCamera;
         }
     }
 }

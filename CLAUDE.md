@@ -36,10 +36,17 @@ There is no `refresh_unity`, `read_console`, `manage_scene`, `manage_components`
 - `result.Log` ignores format specifiers — `{0:F2}` prints literally. Pre-format with `StringBuilder.AppendFormat`.
 - Never call `FlightControls.Dispose()` in an edit-mode probe (Destroy-in-edit-mode error).
 
+## Asset generation
+
+- `Unity_AssetGeneration_GenerateAsset` does not overwrite an existing file at `savePath` — it silently appends `" 1"` instead. To regenerate in place: save to a new/temp path, copy the bytes over the target path, then `AssetDatabase.MoveAssetToTrash` the temp asset (plain `File.Delete` on a tracked asset triggers a blocked interactive dialog).
+- Generated PNGs have repeatedly come back with NO real alpha channel despite the prompt explicitly requesting a transparent background — the model ignores this often. An opaque light/white/gray background is visually indistinguishable from genuine checkerboard transparency in a casual preview; this went undetected through five separate reviews in one session. Always verify by sampling actual pixel alpha in C# (`Texture2D.LoadImage` + `GetPixel().a`), never by eyeballing the Read-tool preview. Sanity-check any fix by comparing the opaque-pixel fraction against the expected geometry (e.g. a filled circle of radius `r` in a canvas of half-width `R` should be ≈ `π(r/R)²/4` opaque) — a plausible-looking image can still be wrong.
+
 ## Tests
 
 - Run via `Flusi.EditorTools.FlusiTestRunner.RunEditMode()` / `RunPlayMode()` inside `Unity_RunCommand`; poll `Temp/flusi-tests.txt` for `STATUS Passed`, detail in `Temp/flusi-tests-failures.txt`. Baseline: **EditMode 41, PlayMode 6**.
 - **A green is worthless until proven live.** When compilation fails the test runner does NOT fail — it silently runs the last good assemblies and reports a STALE pass with a plausible count. Always check console errors AND prove the symbol under test is in the loaded assembly. An unexpected count, even a passing one, means read the console.
+- The run can also silently STALL — `Temp/flusi-tests.txt` stuck at `RUNNING X` indefinitely — if `EditorApplication.isPlaying` is unexpectedly `true`. Check `isPlaying`, exit Play mode, wait a few seconds, retry; don't keep polling a stuck run.
+- Poll with one foreground blocking Bash call in the same turn that kicks off the run: `until grep -q STATUS Temp/flusi-tests.txt; do sleep 2; done; cat Temp/flusi-tests.txt`. A subagent that instead uses `Monitor` or a background wait for the result has its turn end before the result lands.
 - Live-assembly proof (reflection is blocked): bind the symbol to a delegate — `System.Action t = rig.ToggleView;` compiles only if it really exists. Pair with `EditorApplication.isCompiling == false`.
 - Drive the aircraft from a probe with the runtime Input System, no test framework needed: `InputSystem.QueueStateEvent(kb, new KeyboardState(Key.UpArrow)); InputSystem.Update();`. The synthetic state may not survive to the next frame — queue, pump and read in the same script.
 - PlayMode tests that `LoadScene` leave the scene loaded, and `PointOfInterestRegistry` is static: tests depending on an empty registry must clear it in `[SetUp]`, not only `[TearDown]`.
@@ -50,6 +57,7 @@ Each of these fails silently with an empty console — the worst kind to redisco
 
 - Two different built-in stores: fonts via `Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")`; sprites via `AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd")` (circle) or `"UI/Skin/UISprite.psd"` (9-sliced rect). `Resources.GetBuiltinResource<Sprite>` returns NULL.
 - `Image.Type.Filled` needs BOTH the type AND a non-null sprite: `OnPopulateMesh` returns early on a null sprite and ignores `type` entirely. Either mistake yields a permanently-full bar and nothing in the console.
+- `MonoBehaviour.Awake()` runs regardless of the component's own `enabled` flag — setting `enabled = false` to retire a component does NOT stop its `Awake` logic from running. Guard the body explicitly: `void Awake() { if (enabled) Build(); }`.
 - The HUD canvas is `ScaleWithScreenSize` 1920x1080 `match=WIDTH`, so reference HEIGHT varies with aspect (1080@16:9, 1440@4:3). Use fractional anchors for anything that must track the panel.
 - Gauge faces are built at `Awake`: bare in the edit-mode scene view, populated only in play mode and builds. Expected, not a bug.
 - To inspect HUD layout, dump the RectTransform tree (`anchorMin`/`anchorMax`/`anchoredPosition`/`sizeDelta`) via `Unity_RunCommand` — camera capture can't see overlay UI anyway. Containers built with fractional-anchored children (e.g. the six-pack gauges) reflow automatically when the container itself is resized — no need to touch each child.

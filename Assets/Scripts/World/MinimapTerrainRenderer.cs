@@ -1,12 +1,13 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Flusi
 {
-    /// Bakes the minimap's land/water background once at Awake from the
-    /// live terrain and river meshes. Static bake — the world doesn't
-    /// change at runtime, so this never re-runs after Awake.
+    /// Bakes the minimap's land/water background once, shortly after start,
+    /// from the live terrain and river meshes. Static bake — the world
+    /// doesn't change at runtime, so this never re-runs after its first pass.
     public class MinimapTerrainRenderer : MonoBehaviour
     {
         private const int TextureWidth = 256;
@@ -42,6 +43,17 @@ namespace Flusi
 
             background.sprite = Sprite.Create(
                 texture, new Rect(0f, 0f, TextureWidth, TextureHeight), new Vector2(0.5f, 0.5f));
+        }
+
+        // panel.rect.size is not reliable at Awake: Canvas.ForceUpdateCanvases
+        // does not fix it either (confirmed live — still returns a stale,
+        // undersized rect at that point). The Canvas's real pixel dimensions
+        // aren't settled until an actual frame has rendered, so wait one
+        // frame before reading it — a genuine "not ready yet", not a pending
+        // layout that can be flushed on demand.
+        private IEnumerator Start()
+        {
+            yield return null;
 
             float worldAspect = (minimap.WorldMax.x - minimap.WorldMin.x)
                 / (minimap.WorldMax.y - minimap.WorldMin.y);

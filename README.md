@@ -152,25 +152,9 @@ instance is running with this project open".
 `task build:mac UNITY_VERSION=6000.3.19f1` if you have a different version
 installed.
 
-### Via the raw command line
-
 `Taskfile.yml` just wraps `Assets/Editor/BuildScript.cs`'s `BuildMac()` /
 `BuildLinux()` methods, each building all enabled scenes from
 `EditorBuildSettings`:
-
-```shell
-/Applications/Unity/Hub/Editor/6000.5.4f1/Unity.app/Contents/MacOS/Unity \
-  -quit -batchmode -nographics \
-  -projectPath /path/to/flusi \
-  -executeMethod Flusi.EditorTools.BuildScript.BuildMac \
-  -logFile build-mac.log
-
-/Applications/Unity/Hub/Editor/6000.5.4f1/Unity.app/Contents/MacOS/Unity \
-  -quit -batchmode -nographics \
-  -projectPath /path/to/flusi \
-  -executeMethod Flusi.EditorTools.BuildScript.BuildLinux \
-  -logFile build-linux.log
-```
 
 Check the log file if the Unity process exits without producing a build —
 `BuildScript` exits with a non-zero code in batch mode on build failure.

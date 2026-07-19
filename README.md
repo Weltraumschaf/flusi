@@ -9,16 +9,16 @@ Editor instead of the plane.
 
 | Key       | Action                                            |
 |-----------|---------------------------------------------------|
-| ⬆️        | Nose down ↗                                       |
-| ⬇️        | Nose up ↘                                         |
-| ⬅️        | Bank and turn left ←                              |
-| ➡️        | Bank and turn right →                             |
-| `W`       | Faster 🐇                                         |
-| `S`       | Slower 🐢                                         |
-| `C`       | Switch between cockpit and external orbit view 🎥 |
-| `A` / `D` | Rotate the orbit camera (external view only)      |
+| ⬆️        | 🛬 Nose down                                      |
+| ⬇️        | 🛫 Nose up                                        |
+| ⬅️        | ← Bank and turn left                              |
+| ➡️        | → Bank and turn right                             |
+| `W`       | 🐇 Faster                                         |
+| `S`       | 🐢 Slower                                         |
+| `C`       | 🎥 Switch between cockpit and external orbit view |
+| `A` / `D` | 🎥 ↔ Rotate the orbit camera (external view only) |
 | `L`       | Toggle the auto-level assist (starts on)          |
-| `G`       | Raise / lower the landing gear                    |
+| `G`       | 🛞 ↕ Raise/lower the landing gear                 |
 
 **The pitch keys are inverted on purpose, not by mistake.** The up arrow is the
 stick pushed forward, which puts the nose down; the down arrow is the stick

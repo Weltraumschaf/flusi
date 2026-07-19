@@ -51,7 +51,14 @@ namespace Flusi
             if (panel == null || mapArea == null) return;
             if (_markers.Count != PointOfInterestRegistry.All.Count) RebuildMarkers();
             if (AircraftStateRef.IsAlive(_state) && planeBlip != null)
+            {
                 Place(planeBlip, new Vector2(_state.WorldPosition.x, _state.WorldPosition.z));
+                // Nose must point where the aircraft is actually heading, not
+                // the inverse (unlike HeadingIndicator's compass card, which
+                // rotates opposite the aircraft to keep heading under the
+                // lubber line) - clockwise by heading, so -Z in Unity's convention.
+                planeBlip.localEulerAngles = new Vector3(0f, 0f, -_state.HeadingDegrees);
+            }
             foreach (var m in _markers)
                 if (m.marker != null) Place(m.marker, m.worldXZ);
         }

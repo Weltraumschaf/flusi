@@ -45,15 +45,25 @@ namespace Flusi
                 texture, new Rect(0f, 0f, TextureWidth, TextureHeight), new Vector2(0.5f, 0.5f));
         }
 
-        // panel.rect.size is not reliable at Awake: Canvas.ForceUpdateCanvases
-        // does not fix it either (confirmed live — still returns a stale,
-        // undersized rect at that point). The Canvas's real pixel dimensions
-        // aren't settled until an actual frame has rendered, so wait one
-        // frame before reading it — a genuine "not ready yet", not a pending
-        // layout that can be flushed on demand.
+        private const int MaxSizeStabilizeFrames = 30; // safety cap (~0.5s at 60fps), never expected to be hit
+
+        // panel.rect.size is not reliable at Awake, and a fixed one-frame
+        // wait was NOT enough in every environment (confirmed: fine in the
+        // Editor, still stale in a standalone build) - the Canvas's real
+        // pixel dimensions settle at a point that varies by platform/build,
+        // not a fixed frame count. Wait until the read stops changing
+        // between frames instead of guessing how many frames it takes.
         private IEnumerator Start()
         {
+            Vector2 previousSize = panel.rect.size;
             yield return null;
+            int framesWaited = 0;
+            while (panel.rect.size != previousSize && framesWaited < MaxSizeStabilizeFrames)
+            {
+                previousSize = panel.rect.size;
+                yield return null;
+                framesWaited++;
+            }
 
             float worldAspect = (minimap.WorldMax.x - minimap.WorldMin.x)
                 / (minimap.WorldMax.y - minimap.WorldMin.y);

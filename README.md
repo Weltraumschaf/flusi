@@ -2,7 +2,9 @@
 
 This is a simple flight simulator for my six years old son.
 
-## Controls
+## User Manual
+
+### Controls
 
 Keyboard only. Click inside the Game view first, otherwise the keys go to the
 Editor instead of the plane.
@@ -30,7 +32,70 @@ rather than yawing it flat. With the auto-level assist on, releasing the arrows
 brings the wings and nose back to level; with it off, the plane holds whatever
 bank and pitch you leave it in.
 
-## Technoligy Stack
+### Instruments 
+
+The cockpit instruments are divided into three main sections:
+
+```text
+┌───────────────────────────────────┐┌─────────────────┐┌───────────────────────────────────┐
+│                                   ││                 ││                                   │
+│                                   ││                 ││                                   │
+│                                   ││                 ││                                   │
+│              six-pack             ││     minimap     ││             others                │
+│                                   ││                 ││                                   │
+│                                   ││                 ││                                   │
+│                                   ││                 ││                                   │
+└───────────────────────────────────┘└─────────────────┘└───────────────────────────────────┘
+```
+
+#### The Six-Pack
+
+The six gauges on the lift side are a typical Cesna style _six-pack_:
+
+```text
+┌────────────────────────┐ ┌────────────────────────┐ ┌─────────────────────────┐
+│          ASI           │ │          AI            │ │          ALT            │
+│                        │ │                        │ │                         │
+│   Airspeed Indicator   │ │   Attidude Indicator   │ │        Altimeter        │
+└───────────────┴────────┘ └────────────────────────┘ └─────────────────────────┘
+┌────────────────────────┐ ┌────────────────────────┐ ┌─────────────────────────┐
+│          TC            │ │          HI            │ │          VSI            │
+│                        │ │                        │ │                         │
+│    Turn Coordinator    │ │   Heading Indicator    │ │ Vertic  Speed Indicatore│
+└────────────────────────┘ └────────────────────────┘ └─────────────────────────┘
+```
+
+**Top row (left → right)**:
+
+- **ASI**: Airspeed Indicator (knots, with color arcs for flap/normal/never-exceed ranges)
+- **AI**: Attitude Indicator, aka artificial horizon (pitch + bank)
+- **ALT**: Altimeter (altitude, with Kollsman window for pressure setting)
+
+**Bottom row (left → right)**:
+
+- **TC**: Turn Coordinator (rate of turn + inclinometer "ball" for coordination); older aircraft have a T&B, Turn & Bank indicator
+- **HI**: Heading Indicator, also called DG (Directional Gyro) — magnetic heading, drifts and must be reset against the compass
+- **VSI**: Vertical Speed Indicator (feet per minute, climb/descent)
+
+### Minimap
+
+- A small static map of the world. The plane moves on the map as it flies.
+
+### Others
+
+Here are all other indicators:
+
+- Altitude as number
+- Speed in km/h
+- Fuel
+- Assist on/off
+- Gear down
+
+## Specification
+
+See `docs/Specification.md`.
+
+## Technology Stack
 
 - Unity with C#.
 - Running on macOS and Linux.

@@ -11,7 +11,11 @@ namespace Flusi
         [SerializeField] private RectTransform planeBlip;
         [SerializeField] private RectTransform airportMarkerPrefab;
         [SerializeField] private RectTransform landmarkMarkerPrefab;
-        [SerializeField] private float worldSizeMetres = 10000f;
+        [SerializeField] private Vector2 worldMin = new Vector2(-11000f, -6000f);
+        [SerializeField] private Vector2 worldMax = new Vector2(11000f, 6000f);
+
+        public Vector2 WorldMin => worldMin;
+        public Vector2 WorldMax => worldMax;
 
         private IAircraftState _state;
         private readonly List<(RectTransform marker, Vector2 worldXZ)> _markers = new();
@@ -53,7 +57,7 @@ namespace Flusi
 
         private void Place(RectTransform marker, Vector2 worldXZ)
         {
-            Vector2 n = MinimapProjection.WorldToNormalized(worldXZ, worldSizeMetres);
+            Vector2 n = MinimapProjection.WorldToNormalized(worldXZ, worldMin, worldMax);
             Vector2 size = panel.rect.size;
             marker.anchoredPosition = new Vector2((n.x - 0.5f) * size.x, (n.y - 0.5f) * size.y);
         }

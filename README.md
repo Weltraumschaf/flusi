@@ -94,13 +94,13 @@ installed.
 `EditorBuildSettings`:
 
 ```shell
-/Applications/Unity/Hub/Editor/6000.5.2f1/Unity.app/Contents/MacOS/Unity \
+/Applications/Unity/Hub/Editor/6000.5.4f1/Unity.app/Contents/MacOS/Unity \
   -quit -batchmode -nographics \
   -projectPath /path/to/flusi \
   -executeMethod Flusi.EditorTools.BuildScript.BuildMac \
   -logFile build-mac.log
 
-/Applications/Unity/Hub/Editor/6000.5.2f1/Unity.app/Contents/MacOS/Unity \
+/Applications/Unity/Hub/Editor/6000.5.4f1/Unity.app/Contents/MacOS/Unity \
   -quit -batchmode -nographics \
   -projectPath /path/to/flusi \
   -executeMethod Flusi.EditorTools.BuildScript.BuildLinux \

@@ -8,7 +8,7 @@ FluSi — a simple flight simulator built as a gift for the author's six-year-ol
 
 ## Tech Stack
 
-- Unity **6000.5.2f1** (Unity 6) with C#, Universal Render Pipeline (URP).
+- Unity **6000.5.4f1** (Unity 6) with C#, Universal Render Pipeline (URP).
 - `Packages/manifest.json` and `packages-lock.json` are NOT tracked by git (a global `packages/` gitignore rule swallows them) — package changes are invisible to `git log`/`git diff`; check the files on disk directly.
 - New Input System (`com.unity.inputsystem`). The game's input asset is `Assets/Input/FlightControls.inputactions`, generating the wrapper `Assets/Scripts/Flight/FlightControls.cs` (that path is deliberate — it must compile into the `Flusi` assembly). Never hand-edit the wrapper. `Assets/InputSystem_Actions.inputactions` is an unused stock-template leftover.
 - Test Framework (`com.unity.test-framework`) for EditMode/PlayMode tests.
@@ -107,7 +107,7 @@ Each of these fails silently with an empty console — the worst kind to redisco
 - A build-in-place does not update the `.app` bundle directory's own mtime;
   check `Builds/macOS/flusi.app/Contents/MacOS/flusi`'s mtime instead to
   confirm a rebuild actually happened.
-- `task build` / `task build:linux` (see `Taskfile.yml`, `README.md`): the Linux build is flaky by a known Unity 6000.5.2f1 bug — switching the active build target from macOS→Linux races the Editor's IL2CPP sysroot/toolchain discovery. `task build:linux` retries automatically (up to 5x); one retry before green is expected, not a regression.
+- `task build` / `task build:linux` (see `Taskfile.yml`, `README.md`): the Linux build is flaky by a known Unity 6000.5.4f1 bug — switching the active build target from macOS→Linux races the Editor's IL2CPP sysroot/toolchain discovery. `task build:linux` retries automatically (up to 5x); one retry before green is expected, not a regression.
 - Batchmode `task build:*` refuses to run ("another Unity instance is running with this project open") whenever the Editor is already open — Unity won't let two processes share one project. With the Editor open, build in-place instead: call `Flusi.EditorTools.BuildScript.BuildMac()` (or `BuildLinux`) via `Unity_RunCommand`. That call reports MCP-level `"failed"` on ordinary shader compile warnings (there are always some, from URP/Sentis packages) even though the build succeeded — don't trust the tool's pass/fail, check `Builds/<platform>/` for the produced app/binary instead.
 
 ## Git

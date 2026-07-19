@@ -185,6 +185,14 @@ light-aircraft "six pack" plus a minimap, annunciator lamps and a fuel bar.
 Pure static maths sits behind thin `MonoBehaviour`s, the same pattern as
 `MinimapProjection`, so the calculations are EditMode-testable.
 
+The minimap (`Minimap`, `MinimapProjection`) draws the plane blip and POI
+markers over a baked green (land) / blue (sea and rivers) background
+(`MinimapTerrainTexture`, `MinimapTerrainRenderer`), fit into the panel
+preserving the world's true rectangular aspect ratio rather than stretched.
+`MinimapProjection.WorldToNormalized` maps world XZ against the real
+rectangular world bounds (`Minimap.WorldMin`/`WorldMax`), not a single
+square size.
+
 - **`CockpitPanel`** — owns the panel root, showing it in cockpit view and hiding
   it in orbit, and feeds the two digital readouts.
 - **`NeedleGauge`** — one single-needle gauge, three instances distinguished by a

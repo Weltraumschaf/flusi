@@ -8741,6 +8741,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Flusi::Flusi.Minimap
   aircraftSource: {fileID: 859263134}
   panel: {fileID: 1979856396}
+  mapArea: {fileID: 788210347}
   planeBlip: {fileID: 448502132}
   airportMarkerPrefab: {fileID: 5073546524157239636, guid: 3a00e627f888d4f61a18ae15b639a278, type: 3}
   landmarkMarkerPrefab: {fileID: 5947449332313451472, guid: e4b7572700a544b8ea56644a9d4b4029, type: 3}

@@ -8,6 +8,7 @@ namespace Flusi
     {
         [SerializeField] private MonoBehaviour aircraftSource; // must implement IAircraftState
         [SerializeField] private RectTransform panel;          // the map area
+        [SerializeField] private RectTransform mapArea;         // the letterboxed rect markers must match (TerrainBackground) — must be the SAME rect the background is sized to, so blips can never drift from the land/sea art
         [SerializeField] private RectTransform planeBlip;
         [SerializeField] private RectTransform airportMarkerPrefab;
         [SerializeField] private RectTransform landmarkMarkerPrefab;
@@ -47,7 +48,7 @@ namespace Flusi
 
         private void Update()
         {
-            if (panel == null) return;
+            if (panel == null || mapArea == null) return;
             if (_markers.Count != PointOfInterestRegistry.All.Count) RebuildMarkers();
             if (AircraftStateRef.IsAlive(_state) && planeBlip != null)
                 Place(planeBlip, new Vector2(_state.WorldPosition.x, _state.WorldPosition.z));
@@ -58,7 +59,7 @@ namespace Flusi
         private void Place(RectTransform marker, Vector2 worldXZ)
         {
             Vector2 n = MinimapProjection.WorldToNormalized(worldXZ, worldMin, worldMax);
-            Vector2 size = panel.rect.size;
+            Vector2 size = mapArea.rect.size;
             marker.anchoredPosition = new Vector2((n.x - 0.5f) * size.x, (n.y - 0.5f) * size.y);
         }
     }

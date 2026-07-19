@@ -77,6 +77,18 @@ There is no `refresh_unity`, `read_console`, `manage_scene`, `manage_components`
 
 Each of these fails silently with an empty console — the worst kind to rediscover.
 
+- A Screen-Space-Camera canvas is confined to its bound camera's own `rect`; a
+  letterboxed world camera squeezes the WHOLE canvas into that letterbox, not
+  just the 3D view. Don't stack a second Base UI camera to work around it either
+  — cross-camera "don't clear" compositing is undefined on Metal, the same
+  fragility class as the stencil-`Mask` bug below. If the panel is opaque
+  anyway, just make the world camera full-screen instead.
+- Siblings positioned by anchor **fraction** (e.g. the six-pack's 1/6, 1/2, 5/6
+  columns) reflow across resolutions; a sibling positioned by a fixed pixel
+  `anchoredPosition` instead (e.g. a caption meant to sit under one) does NOT,
+  and drifts off at any window size other than the one it was tuned against.
+  Read the target's actual `anchorMin`/`anchorMax` and copy it — don't hardcode
+  a rounded literal (`0.17` when the real value is `1/6 = 0.16666667`).
 - Two different built-in stores: fonts via `Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")`; sprites via `AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd")` (circle) or `"UI/Skin/UISprite.psd"` (9-sliced rect). `Resources.GetBuiltinResource<Sprite>` returns NULL.
 - `Image.Type.Filled` needs BOTH the type AND a non-null sprite: `OnPopulateMesh` returns early on a null sprite and ignores `type` entirely. Either mistake yields a permanently-full bar and nothing in the console.
 - `MonoBehaviour.Awake()` runs regardless of the component's own `enabled` flag — setting `enabled = false` to retire a component does NOT stop its `Awake` logic from running. Guard the body explicitly: `void Awake() { if (enabled) Build(); }`.
@@ -90,11 +102,19 @@ Each of these fails silently with an empty console — the worst kind to redisco
 
 ## Building
 
+- Build output lands at `Builds/macOS/flusi.app` / `Builds/Linux/flusi` (see
+  `BuildScript.cs`), not `Builds/mac/`.
+- A build-in-place does not update the `.app` bundle directory's own mtime;
+  check `Builds/macOS/flusi.app/Contents/MacOS/flusi`'s mtime instead to
+  confirm a rebuild actually happened.
 - `task build` / `task build:linux` (see `Taskfile.yml`, `README.md`): the Linux build is flaky by a known Unity 6000.5.2f1 bug — switching the active build target from macOS→Linux races the Editor's IL2CPP sysroot/toolchain discovery. `task build:linux` retries automatically (up to 5x); one retry before green is expected, not a regression.
 - Batchmode `task build:*` refuses to run ("another Unity instance is running with this project open") whenever the Editor is already open — Unity won't let two processes share one project. With the Editor open, build in-place instead: call `Flusi.EditorTools.BuildScript.BuildMac()` (or `BuildLinux`) via `Unity_RunCommand`. That call reports MCP-level `"failed"` on ordinary shader compile warnings (there are always some, from URP/Sentis packages) even though the build succeeded — don't trust the tool's pass/fail, check `Builds/<platform>/` for the produced app/binary instead.
 
 ## Git
 
+- `ProjectSettings/UnityConnectSettings.asset` (`m_Enabled`) gets toggled by
+  ordinary Editor/test-runner activity, unrelated to any real edit — check
+  `git diff` before staging and leave it out if it's just this.
 - Commit messages: use the `write-commit-messages` skill — <=50-char imperative subject, body wrapped at 72, explaining what and why. No trailers, matching the existing history.
 - A new asset's `.meta` must land in the SAME commit as the asset, or a checkout of that commit has an asset with no GUID.
 - Interactive rebase is blocked in this environment: use `git commit --fixup=<sha>` + `GIT_SEQUENCE_EDITOR=true git rebase --autosquash <base>`.

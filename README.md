@@ -1,6 +1,6 @@
 # FluSi
 
-This is a simple flight simulator for my six years old son.
+FluSi — a simple flight simulator built as a gift for the author's six-year-old son. Runs on macOS and Linux.
 
 ## User Manual
 
@@ -131,7 +131,7 @@ discovery to the Server component).
 Switching platforms re-imports platform-specific asset variants, so do the two
 builds one at a time.
 
-### Via Taskfile
+### Via the raw command line
 
 Install [go-task](https://taskfile.dev) (`brew install go-task`), then from
 the project root:

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-FluSi — a simple flight simulator built as a gift for the author's six-year-old son. Runs on macOS and Linux.
+See `README.md`.
 
 ## Tech Stack
 

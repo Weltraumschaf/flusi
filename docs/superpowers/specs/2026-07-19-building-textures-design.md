@@ -77,6 +77,21 @@ used in this project):
   city-gen code's `new System.Random(12345)` / `new System.Random(54321)`).
 - Walks `CityA_Skytown`'s children, sets each `MeshRenderer.sharedMaterial`
   to one of the 3 skyscraper materials, picked at random.
+- Per-building tiling correction (added during implementation, not in this
+  spec's original scope — see the implementation plan's Task 3): the
+  window-grid texture is stretched on tall boxes unless tiling scales with
+  the box's height/width ratio. The initial approach (`MaterialPropertyBlock`
+  override, keeping all buildings pointed at the 6 shared `Material` assets)
+  turned out not to work — `MaterialPropertyBlock` is pure runtime `Renderer`
+  state that Unity never serializes into `.unity` scene files, so the
+  correction silently vanished on scene reload. Fixed by giving each
+  building its own `Object.Instantiate()`d `Material` (cloned from its
+  cluster's chosen variant) with the tiling baked into that instance.
+  **Consequence: the 6 base `.mat` assets under `Assets/Materials/` are no
+  longer referenced by any building** — they're templates the per-building
+  clones were made from, not live materials. Editing a base `.mat` (tint,
+  smoothness, texture) has no effect on the scene; regenerate/reassign per
+  building instead.
 - Walks `TownB_Millbrook`'s children, sets each `MeshRenderer.sharedMaterial`
   to one of the 2-3 town-building materials, picked at random.
 - `MarkSceneDirty` + `SaveScene` at the end so the assignment lands on disk.
